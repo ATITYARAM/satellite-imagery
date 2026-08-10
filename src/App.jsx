@@ -1,29 +1,16 @@
-// src/App.jsx
-import React, { useState } from 'react';
-import Sidebar from './components/Sidebar';
+import React from 'react';
+import Sidebar, { SECTIONS } from './components/Sidebar';
 import MapView from './components/MapView';
 
 export default function App() {
-  const [activeLayers, setActiveLayers] = useState({
-    rainfall: false,
-    terrain: false,
-    weather: false,
-    ocean: false,
-    history: true,
-    prediction: true // Set AI Prediction active by default for 30% prototype demo
-  });
-
-  const toggleLayer = (id) => {
-    setActiveLayers((prev) => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
-  };
+  // Read section ID from URL query param (e.g. ?section=terrain), default to 'prediction'
+  const queryParams = new URLSearchParams(window.location.search);
+  const activeSection = queryParams.get('section') || 'prediction';
 
   return (
     <div className="app-container">
-      <Sidebar activeLayers={activeLayers} toggleLayer={toggleLayer} />
-      <MapView activeLayers={activeLayers} />
+      <Sidebar activeSection={activeSection} />
+      <MapView activeSection={activeSection} />
     </div>
   );
 }
