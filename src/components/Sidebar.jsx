@@ -19,7 +19,7 @@ export default function Sidebar({ activeSection }) {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <h2>Coastal Analytics</h2>
+        <h2>Satellite-Imagerys</h2>
         <p>Select a section view to reload analytics mode.</p>
       </div>
 
