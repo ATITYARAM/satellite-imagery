@@ -44,7 +44,7 @@ def satellite_data():
         with metadata_path.open('r', encoding='utf-8') as handle:
             metadata = json.load(handle)
         metadata['available'] = True
-        metadata['preview_url'] = f'/satellite-data/{year}/scene_preview.jpg'
+        metadata['preview_url'] = f'/satellite/rgb/{year}.png'
         metadata['download_urls'] = {
             name: f'/satellite-data/{year}/{Path(info["path"]).name}'
             for name, info in metadata.get('bands', {}).items()
@@ -52,6 +52,65 @@ def satellite_data():
         metadata['metadata_url'] = f'/satellite-data/{year}/metadata.json'
         result['years'][str(year)] = metadata
     return result
+
+@app.get('/satellite/rgb/{year}.png')
+def satellite_rgb(year: int):
+    if year not in (2016, 2026):
+        raise HTTPException(status_code=404, detail='Satellite year not found')
+
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import rasterio
+
+    year_dir = DATA_ROOT / str(year)
+    red_path = year_dir / 'B4_red.tif'
+    green_path = year_dir / 'B3_green.tif'
+    blue_path = year_dir / 'B2_blue.tif'
+    if not all(path.exists() for path in (red_path, green_path, blue_path)):
+        raise HTTPException(status_code=404, detail='RGB band data not found')
+
+    output_path = year_dir / 'aoi_rgb.png'
+    if not output_path.exists():
+        with rasterio.open(red_path) as red_src, rasterio.open(green_path) as green_src, rasterio.open(blue_path) as blue_src:
+            red = red_src.read(1).astype('float32')
+            green = green_src.read(1).astype('float32')
+            blue = blue_src.read(1).astype('float32')
+
+        stack = np.stack([red, green, blue], axis=-1)
+        valid = np.all(np.isfinite(stack) & (stack > 0), axis=-1)
+        if not np.any(valid):
+            raise HTTPException(status_code=422, detail='RGB data contains no valid pixels')
+
+        rgb = np.zeros_like(stack, dtype='float32')
+        for channel in range(3):
+            values = stack[:, :, channel][valid]
+            low, high = np.percentile(values, [2, 98])
+            if high <= low:
+                high = low + 1.0
+            rgb[:, :, channel] = np.clip(
+                (stack[:, :, channel] - low) / (high - low),
+                0.0,
+                1.0,
+            )
+
+        rgb[~valid] = 0.0
+
+        fig = plt.figure(figsize=(7.2, 10.5), dpi=120, frameon=False)
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.imshow(rgb, interpolation='nearest')
+        ax.axis('off')
+        fig.savefig(
+            output_path,
+            dpi=120,
+            bbox_inches='tight',
+            pad_inches=0,
+            facecolor='black',
+        )
+        plt.close(fig)
+
+    return FileResponse(output_path, media_type='image/png')
 
 @app.get('/aoi')
 def aoi():
