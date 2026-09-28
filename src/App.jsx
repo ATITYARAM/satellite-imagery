@@ -28,22 +28,12 @@ function XGBoostSatelliteSplit() {
   const right = data?.years?.['2026'];
 
   return (
-    <main className="xgboost-satellite-split" aria-label="Satellite comparison">
+    <main className="xgboost-satellite-split" aria-label="Raw satellite imagery comparison">
       <section className="split-side split-side-left">
-        {left?.available && (
-          <img
-            src={left.preview_url}
-            alt="2016 satellite imagery"
-          />
-        )}
+        {left?.available ? <img src={left.preview_url} alt="2016 raw satellite imagery" /> : null}
       </section>
       <section className="split-side split-side-right">
-        {right?.available && (
-          <img
-            src={right.preview_url}
-            alt="2026 satellite imagery"
-          />
-        )}
+        {right?.available ? <img src={right.preview_url} alt="2026 raw satellite imagery" /> : null}
       </section>
     </main>
   );
