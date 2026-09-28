@@ -22,6 +22,12 @@ export default function App() {
     setSatelliteDataOpen(true);
   };
 
+  React.useEffect(() => {
+    const close = () => setSatelliteDataOpen(false);
+    window.addEventListener('close-satellite-data', close);
+    return () => window.removeEventListener('close-satellite-data', close);
+  }, []);
+
   return (
     <div className="app-container">
       <Sidebar
