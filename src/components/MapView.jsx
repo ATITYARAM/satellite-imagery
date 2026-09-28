@@ -1,116 +1,48 @@
-import React from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import React, { useEffect, useMemo, useState } from 'react';
+import { MapContainer, Polygon, TileLayer } from 'react-leaflet';
 import { SECTIONS } from './Sidebar';
 
-const CHENNAI_CENTER = [12.8, 80.2];
+const DEFAULT_CENTER = [12.8, 80.2];
 
-function fmt(value, digits = 3) {
-  return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : 'N/A';
-}
+export default function MapView({ activeSection }) {
+  const [aoi, setAoi] = useState(null);
 
-export default function MapView({ activeSection, mapData, satelliteMapData, onSegmentSelect }) {
-  const currentInfo = SECTIONS.find((s) => s.id === activeSection) || SECTIONS[0];
-  const Icon = currentInfo.icon;
-  const activeData = activeSection === 'satellite' ? satelliteMapData : mapData;
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/aoi')
+      .then((response) => { if (!response.ok) throw new Error('AOI unavailable'); return response.json(); })
+      .then((data) => { if (!cancelled) setAoi(data); })
+      .catch(() => { if (!cancelled) setAoi(null); });
+    return () => { cancelled = true; };
+  }, []);
 
-  const getPriorityColor = (priority) => {
-    if (priority === 'High') return '#ef4444';
-    if (priority === 'Medium') return '#f59e0b';
-    return '#10b981';
-  };
-
-  const getSatelliteColor = (landWaterClass) => {
-    if (landWaterClass === 'water') return '#38bdf8';
-    if (landWaterClass === 'land') return '#84cc16';
-    return '#94a3b8';
-  };
+  const current = useMemo(() => SECTIONS.find((section) => section.id === activeSection) || SECTIONS[0], [activeSection]);
+  const Icon = current.icon;
+  const polygonPositions = useMemo(() => {
+    const ring = aoi?.features?.[0]?.geometry?.coordinates?.[0];
+    if (!Array.isArray(ring)) return null;
+    return ring.map(([longitude, latitude]) => [latitude, longitude]);
+  }, [aoi]);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, backgroundColor: '#1e293b' }}>
+    <main className="map-container">
       <div className="map-banner">
-        <Icon size={20} color={currentInfo.color} />
-        <h3>Active View: {currentInfo.name}</h3>
+        <Icon size={18} color={current.color} />
+        <span>Active View: {current.name}</span>
       </div>
-
-      <MapContainer center={CHENNAI_CENTER} zoom={10} style={{ height: '100%', width: '100%', backgroundColor: '#0f172a' }}>
+      <MapContainer center={DEFAULT_CENTER} zoom={10} minZoom={8} maxZoom={18} zoomControl style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-
-        {activeData?.features?.map((feature, idx) => {
-          const coords = feature.geometry?.coordinates || [];
-          const p = feature.properties || {};
-          if (coords.length < 2) return null;
-
-          let fillColor = currentInfo.color;
-          let radius = 5;
-          if (activeSection === 'prediction') {
-            fillColor = getPriorityColor(p.priority_class);
-            radius = 8;
-          } else if (activeSection === 'satellite') {
-            fillColor = getSatelliteColor(p.land_water_class);
-            radius = 7;
-          }
-
-          return (
-            <CircleMarker
-              key={`${p.segment_id || 'segment'}-${idx}`}
-              center={[coords[1], coords[0]]}
-              radius={radius}
-              pathOptions={{ color: '#000', weight: 1, fillColor, fillOpacity: 0.85 }}
-              eventHandlers={{ click: () => onSegmentSelect(p.segment_id) }}
-            >
-              <Popup>
-                <div style={{ minWidth: '210px', color: '#333' }}>
-                  <strong>Segment:</strong> {p.segment_id}<br />
-                  {activeSection === 'satellite' ? (
-                    <>
-                      <strong>Land/Water:</strong> {p.land_water_class || 'N/A'}<br />
-                      <strong>Water Probability:</strong> {fmt(p.water_probability, 2)}<br />
-                      <strong>NDVI:</strong> {fmt(p.ndvi, 3)}<br />
-                      <strong>NDWI:</strong> {fmt(p.ndwi, 3)}<br />
-                      <strong>MNDWI:</strong> {fmt(p.mndwi, 3)}<br />
-                      <strong>SAVI:</strong> {fmt(p.savi, 3)}<br />
-                      <strong>Quality:</strong> {p.quality_flag || 'N/A'}<br />
-                      <strong>Source:</strong> {p.source_mode || 'N/A'}<br />
-                    </>
-                  ) : activeSection === 'prediction' ? (
-                    <>
-                      <strong>Predicted Change:</strong> {fmt(p.predicted_change)} m<br />
-                      <strong>Priority:</strong> {p.priority_class || 'N/A'}<br />
-                    </>
-                  ) : (
-                    <>
-                      <strong>Domain:</strong> {currentInfo.name}<br />
-                    </>
-                  )}
-                  <strong>Coordinates:</strong> {fmt(coords[1], 4)}, {fmt(coords[0], 4)}
-                </div>
-              </Popup>
-            </CircleMarker>
-          );
-        })}
+        {polygonPositions && (
+          <Polygon positions={polygonPositions} pathOptions={{ color: '#38bdf8', weight: 2, fillColor: '#38bdf8', fillOpacity: 0.05 }} />
+        )}
       </MapContainer>
-
-      {activeSection === 'prediction' && (
-        <div className="map-overlay-legend">
-          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Priority Legend</div>
-          <div><span className="legend-dot" style={{ backgroundColor: '#ef4444' }} /> High</div>
-          <div><span className="legend-dot" style={{ backgroundColor: '#f59e0b' }} /> Medium</div>
-          <div><span className="legend-dot" style={{ backgroundColor: '#10b981' }} /> Low</div>
-        </div>
-      )}
-
-      {activeSection === 'satellite' && (
-        <div className="map-overlay-legend">
-          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Satellite Class</div>
-          <div><span className="legend-dot" style={{ backgroundColor: '#38bdf8' }} /> Water</div>
-          <div><span className="legend-dot" style={{ backgroundColor: '#84cc16' }} /> Land</div>
-          <div><span className="legend-dot" style={{ backgroundColor: '#94a3b8' }} /> Unknown</div>
-          <div style={{ marginTop: '6px', color: '#f59e0b' }}>Live or synthetic fallback</div>
-        </div>
-      )}
-    </div>
+      <div className="map-stage-label">
+        <strong>{current.name}</strong>
+        <span>Domain output will be added here as each research system is implemented.</span>
+      </div>
+    </main>
   );
 }

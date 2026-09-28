@@ -1,79 +1,57 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coastal Erosion Prediction Platform - Presentation</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; }
-        h1, h2, h3 { color: #2c3e50; }
-        .alert { padding: 15px; background-color: #e74c3c; color: white; margin-bottom: 20px; border-radius: 5px; font-weight: bold; text-align: center; }
-        .domain { background-color: #ecf0f1; padding: 15px; margin-bottom: 10px; border-left: 5px solid #3498db; }
-        code { background: #eee; padding: 2px 4px; border-radius: 3px; }
-        .metrics { display: flex; justify-content: space-between; flex-wrap: wrap; }
-        .metric-card { background: #34495e; color: white; padding: 20px; border-radius: 5px; width: 45%; margin-bottom: 15px; text-align: center; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coastal Erosion Prediction Platform — Project Status</title>
+<style>
+body{margin:0;background:#0f172a;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;line-height:1.55}
+main{max-width:980px;margin:40px auto;padding:0 24px}
+section{background:#111c31;border:1px solid #22304a;border-radius:14px;padding:24px;margin:18px 0}
+h1,h2{color:#f8fafc} .tag{display:inline-block;background:#332711;color:#fbbf24;padding:6px 10px;border-radius:8px;font-weight:700;font-size:12px}
+pre{white-space:pre-wrap;background:#0b1220;padding:16px;border-radius:10px;overflow:auto}
+</style>
 </head>
 <body>
-
-<div class="container">
-    <div class="alert">
-        SYNTHETIC DATA — PIPELINE DEMONSTRATION
-    </div>
-
-    <h1>Coastal Erosion Prediction Platform</h1>
-
-    <h2>1. Original Problem Statement</h2>
-    <blockquote>
-        "Create a satellite-image analytics system to monitor and predict coastal erosion patterns. The solution should integrate spatial datasets such as maps, satellite imagery, terrain, rainfall, infrastructure, and field records to generate meaningful decision layers. The outcome may include risk maps, priority zones, dashboards, and validation using historical records or expert-labelled ground truth."
-    </blockquote>
-
-    <h2>2. Actual Project Goal</h2>
-    <p>Build a multi-source, spatial-temporal coastal erosion prediction system for the Chennai–Mahabalipuram Coastal Belt by processing five independent environmental/spatial domains.</p>
-    
-    <h2>3. Common Study Area</h2>
-    <p><strong>Chennai–Mahabalipuram Coastal Belt, Tamil Nadu, India.</strong> The architecture uses a shared configurable AOI polygon to unify features spatially.</p>
-
-    <h2>4. Five-Domain Architecture</h2>
-    <p>Why one paper is not enough: Coastal erosion is multi-faceted. Our architecture unifies:</p>
-    <div class="domain"><strong>1. Satellite Imagery:</strong> Spectral indices, land/water classification.</div>
-    <div class="domain"><strong>2. Shoreline History:</strong> Historical shoreline movement.</div>
-    <div class="domain"><strong>3. Terrain:</strong> Elevation, slope, distance to shore.</div>
-    <div class="domain"><strong>4. Rainfall/Weather:</strong> Cumulative rainfall, wind speed.</div>
-    <div class="domain"><strong>5. Ocean Conditions:</strong> Wave height, storm surge.</div>
-
-    <h2>5. Current Selected Satellite Paper</h2>
-    <p><strong>Title:</strong> Geoinformatics and Machine Learning for Shoreline Change Monitoring: A 35-Year Analysis of Coastal Erosion in the Upper Gulf of Thailand<br>
-    <strong>Why Selected:</strong> Provides clear implementation details for RF-based spectral classification (NDVI, NDWI, MNDWI, SAVI) which perfectly matches our Domain 1 needs.</p>
-
-    <h2>6. Synthetic-Data Architecture & Fusion</h2>
-    <p>For Phase 1, we implemented a deterministic data generator producing realistic (but synthetic) data for all 5 domains across 100 coastal segments and 24 time periods. These are standardized and joined spatially and temporally into a <code>combined_ml_inputs.csv</code> layer.</p>
-
-    <h2>7. ML Architecture & Current Results</h2>
-    <p>We process the combined dataset to predict <code>future_shoreline_change_m</code> (provisional target).</p>
-    <div class="metrics">
-        <div class="metric-card">
-            <h3>Random Forest (Baseline)</h3>
-            <p>R²: ~0.85</p>
-        </div>
-        <div class="metric-card">
-            <h3>XGBoost (Main)</h3>
-            <p>R²: ~0.87</p>
-        </div>
-    </div>
-    <p><em>(Metrics above are based on the latest synthetic data run).</em></p>
-
-    <h2>8. GIS & Dashboard Output</h2>
-    <p>Outputs include Priority Zones (High, Medium, Low risk segments) generated by combining predicted erosion change with external factors like storm surge. <code>map_data.geojson</code> serves as the rendering layer.</p>
-    
-    <h2>9. Current Implementation Status & Real-Data Migration Plan</h2>
-    <ul>
-        <li><strong>Done:</strong> Scaffolding, Synthetic Data Generator, Join Pipeline, ML Training & Inference, API endpoints skeleton.</li>
-        <li><strong>Limitations:</strong> Currently completely synthetic. Deep Learning not yet integrated.</li>
-        <li><strong>Migration Plan:</strong> We will implement real-data adapters (<code>RealSatelliteAdapter</code>, <code>RealWeatherAdapter</code>) domain by domain, allowing seamless transition to real-world validation.</li>
-    </ul>
-</div>
-
+<main>
+<span class="tag">CURRENT STATE: CLEAN REBUILD</span>
+<h1>Coastal Erosion Prediction Platform</h1>
+<section>
+<h2>Original Problem Statement</h2>
+<p>Create a satellite-image analytics system to monitor and predict coastal erosion patterns. The solution should integrate spatial datasets such as maps, satellite imagery, terrain, rainfall, infrastructure, and field records to generate meaningful decision layers. The outcome may include risk maps, priority zones, dashboards, and validation using historical records or expert-labelled ground truth.</p>
+</section>
+<section>
+<h2>Project Architecture</h2>
+<pre>Satellite Imagery
+Shoreline History
+Terrain
+Rainfall / Weather
+Ocean Conditions
+        ↓
+standardized domain outputs
+        ↓
+spatial + temporal fusion
+        ↓
+machine learning
+        ↓
+analysis / decision layers</pre>
+</section>
+<section>
+<h2>Current Focus</h2>
+<p><strong>Section 1 — Satellite Imagery</strong></p>
+<p>The repository is being rebuilt one domain at a time. The current immediate task is to obtain and verify the raw satellite input before implementing the later satellite-processing stages.</p>
+</section>
+<section>
+<h2>Research Basis</h2>
+<p>Current Satellite-domain primary paper:</p>
+<p><strong>Chawalit et al. (2025)</strong><br>
+“Geoinformatics and Machine Learning for Shoreline Change Monitoring: A 35-Year Analysis of Coastal Erosion in the Upper Gulf of Thailand”<br>
+DOI: 10.3390/ijgi14020094</p>
+</section>
+<section>
+<h2>Data Policy</h2>
+<p>Real source data is preferred. Where a real source cannot be acquired, synthetic data may be used only as an explicitly labelled pipeline fallback.</p>
+</section>
+</main>
 </body>
 </html>

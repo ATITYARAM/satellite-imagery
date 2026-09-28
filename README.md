@@ -1,41 +1,29 @@
 # Coastal Erosion Prediction Platform
 
-## Problem Statement
-"Create a satellite-image analytics system to monitor and predict coastal erosion patterns. The solution should integrate spatial datasets such as maps, satellite imagery, terrain, rainfall, infrastructure, and field records to generate meaningful decision layers. The outcome may include risk maps, priority zones, dashboards, and validation using historical records or expert-labelled ground truth."
+## Original Problem Statement
 
-## Architecture
-Five distinct domains:
+Create a satellite-image analytics system to monitor and predict coastal erosion patterns. The solution should integrate spatial datasets such as maps, satellite imagery, terrain, rainfall, infrastructure, and field records to generate meaningful decision layers. The outcome may include risk maps, priority zones, dashboards, and validation using historical records or expert-labelled ground truth.
+
+## Current architecture
+
+The complete project will use five independent domains:
 1. Satellite Imagery
 2. Shoreline History
 3. Terrain
-4. Rainfall/Weather
+4. Rainfall / Weather
 5. Ocean Conditions
 
-Each domain produces standardized outputs that are joined temporally and spatially to produce machine learning features.
+Each domain will be implemented independently and will later provide a standardized output for the combined ML stage.
 
-## How to Start the System
+## Current clean state
 
-1. Activate the environment:
-```bash
-source venv/bin/activate
-```
+Only the common application shell and study-area AOI are retained in the UI. Domain outputs are added one section at a time, beginning with Satellite Imagery.
 
-2. Run the synthetic pipeline:
-```bash
-python scripts/run_demo.py
-```
+## Local run
 
-3. Start the backend:
-```bash
-uvicorn app.api.main:app --reload
-```
+1. Activate the Python environment.
+2. Build the frontend with npm run build.
+3. Start FastAPI with uvicorn app.api.main:app --reload.
+4. Open http://127.0.0.1:8000/.
 
-4. Open the dashboard in your browser:
-[http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-
-## Project Components
-- **API**: The backend server powered by FastAPI. Serves both JSON data endpoints and the UI.
-- **Dashboard**: The local interactive HTML/JS application served by the API.
-- **Synthetic Pipeline**: The data generation and ML training simulated workflow currently representing Phase 1.
-- **Generated Outputs**: Results like model metrics, geojson maps, and feature CSVs created by the pipeline.
-- **Future Real-Data Adapters**: The planned migration (Phases 2-6) to replace synthetic generation with real external data pipelines.
+GitHub is used only for source/version control. No GitHub Pages deployment is required.
