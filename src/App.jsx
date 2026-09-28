@@ -70,11 +70,11 @@ function ResultView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const runModel = async () => {
+  const runModel = async (force = false) => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/xgboost/result');
+      const response = await fetch('/xgboost/result' + (force ? '?force=true' : ''));
       if (!response.ok) {
         const detail = await response.text();
         throw new Error(detail || 'XGBoost result unavailable');
@@ -101,7 +101,7 @@ function ResultView() {
           <h1>XGBoost Result</h1>
           <p>2016 → 2026 paired satellite-image prototype using the actual Landsat band data.</p>
         </div>
-        <button type="button" className="result-refresh" onClick={runModel} disabled={loading}>
+        <button type="button" className="result-refresh" onClick={() => runModel(true)} disabled={loading}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} />
           {loading ? 'Running…' : 'Run XGBoost'}
         </button>
