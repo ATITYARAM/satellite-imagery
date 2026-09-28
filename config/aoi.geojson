@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Chennai-Mahabalipuram Coastal Belt"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.3, 13.1],
+            [80.3, 12.6],
+            [80.1, 12.6],
+            [80.1, 13.1],
+            [80.3, 13.1]
+          ]
+        ]
+      }
+    }
+  ]
+}

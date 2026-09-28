@@ -1,0 +1,15 @@
+Feature,Importance
+wave_height_m,0.086143956
+elevation_m,0.08445624
+storm_surge_m,0.084118456
+rainfall_30d_mm,0.07645136
+distance_to_shore_m,0.075990364
+nsm_m,0.07443915
+shoreline_change_m,0.07434651
+wind_speed_ms,0.07430582
+epr_m_per_year,0.07039097
+sat_savi,0.06707585
+slope_deg,0.06421688
+sat_mndwi,0.063987225
+sat_ndwi,0.06257095
+sat_ndvi,0.04150621

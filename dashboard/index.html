@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coastal Erosion Dashboard</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #fafafa; }
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h1, h2 { color: #333; }
+        .indicator { padding: 10px; background: #f39c12; color: #fff; font-weight: bold; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="indicator">DATA: SYNTHETIC DEMONSTRATION</div>
+    
+    <div class="card">
+        <h1>Coastal Erosion Prediction Dashboard</h1>
+        <p><strong>Study Area:</strong> Chennai-Mahabalipuram Coastal Belt</p>
+    </div>
+    
+    <div class="card">
+        <h2>Five-Domain Status</h2>
+        <ul>
+            <li>✅ Satellite (Geoinformatics and Machine Learning for Shoreline Change Monitoring...)</li>
+            <li>✅ Shoreline History</li>
+            <li>✅ Terrain</li>
+            <li>✅ Rainfall / Weather</li>
+            <li>✅ Ocean Conditions</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h2>Model Metrics</h2>
+        <div id="metrics-container">Loading metrics...</div>
+    </div>
+    
+    <div class="card">
+        <h2>Feature Importance</h2>
+        <p>Run the backend pipeline to generate <code>feature_importance.csv</code> in the outputs folder.</p>
+    </div>
+
+    <script>
+        fetch('/metrics')
+            .then(r => r.json())
+            .then(data => {
+                if(data.error) {
+                    document.getElementById('metrics-container').innerText = data.error;
+                } else {
+                    document.getElementById('metrics-container').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            })
+            .catch(e => {
+                document.getElementById('metrics-container').innerText = "Run API server locally using 'uvicorn app.api.main:app' to view metrics here.";
+            });
+    </script>
+</body>
+</html>
