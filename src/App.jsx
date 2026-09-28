@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar, { SECTIONS } from './components/Sidebar';
 import MapView from './components/MapView';
 
@@ -9,15 +9,27 @@ export default function App() {
     ? requested
     : 'prediction';
 
+  const [satelliteDataOpen, setSatelliteDataOpen] = useState(false);
+
   const selectSection = (sectionId) => {
     window.history.pushState({}, '', '?section=' + sectionId);
     window.dispatchEvent(new PopStateEvent('popstate'));
+    if (sectionId !== 'satellite') setSatelliteDataOpen(false);
+  };
+
+  const openSatelliteData = () => {
+    selectSection('satellite');
+    setSatelliteDataOpen(true);
   };
 
   return (
     <div className="app-container">
-      <Sidebar activeSection={activeSection} onSelect={selectSection} />
-      <MapView activeSection={activeSection} />
+      <Sidebar
+        activeSection={activeSection}
+        onSelect={selectSection}
+        onSatelliteDoubleClick={openSatelliteData}
+      />
+      <MapView activeSection={activeSection} satelliteDataOpen={satelliteDataOpen} />
     </div>
   );
 }
