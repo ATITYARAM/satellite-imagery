@@ -10,3 +10,6 @@ matplotlib
 seaborn
 requests
 python-dotenv
+rasterio
+pystac
+planetary-computer
