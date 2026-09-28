@@ -50,6 +50,11 @@ export default function Sidebar({ activeSection, onSelect }) {
                 transition: 'background-color 0.2s'
               }}
               onClick={() => onSelect(sec.id)}
+              onDoubleClick={(e) => {
+                  if (sec.id === 'satellite' && window.onSatelliteDoubleClick) {
+                      window.onSatelliteDoubleClick();
+                  }
+              }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Icon size={20} color={sec.color} />

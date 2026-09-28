@@ -37,6 +37,9 @@ OUTPUT_DIR = ROOT / "outputs"
 SATELLITE_CSV = OUTPUT_DIR / "satellite_domain_output.csv"
 SATELLITE_GEOJSON = OUTPUT_DIR / "satellite_map.geojson"
 SATELLITE_RUN = OUTPUT_DIR / "satellite_run.json"
+SATELLITE_RAW_DIR = OUTPUT_DIR / "satellite_raw"
+SATELLITE_RAW_IMG = SATELLITE_RAW_DIR / "latest_raw_rgb.png"
+SATELLITE_RAW_META = SATELLITE_RAW_DIR / "latest_raw_metadata.json"
 
 STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/search"
 COLLECTION = "landsat-c2-l2"
@@ -284,6 +287,30 @@ def run_live() -> dict[str, Any]:
         )
         rows.append(row)
 
+    # Save real image preview
+    try:
+        SATELLITE_RAW_DIR.mkdir(parents=True, exist_ok=True)
+        preview_url = item_json.get("assets", {}).get("rendered_preview", {}).get("href")
+        if preview_url:
+            resp = requests.get(preview_url, timeout=30)
+            resp.raise_for_status()
+            with open(SATELLITE_RAW_IMG, "wb") as f:
+                f.write(resp.content)
+            
+            raw_meta = {
+                "status": "real",
+                "scene_id": str(item_json.get("id")),
+                "observation_date": str(scene_dt)[:10] if scene_dt else dt.date.today().isoformat(),
+                "sensor": "Landsat 8/9 C2 L2",
+                "cloud_cover": float(cloud) if cloud is not None else "N/A",
+                "source": "Microsoft Planetary Computer",
+                "image_url": "/satellite/raw-image"
+            }
+            with open(SATELLITE_RAW_META, "w", encoding="utf-8") as f:
+                json.dump(raw_meta, f, indent=2)
+    except Exception as e:
+        print(f"Failed to save real preview: {e}")
+
     return {
         "rows": rows,
         "run": {
@@ -346,6 +373,32 @@ def run_synthetic(reason: str = "live acquisition unavailable") -> dict[str, Any
                 "quality_flag": "SYNTHETIC",
             }
         )
+
+    # Save synthetic image preview
+    try:
+        SATELLITE_RAW_DIR.mkdir(parents=True, exist_ok=True)
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.set_facecolor('#1e293b')
+        ax.text(0.5, 0.5, 'SYNTHETIC FALLBACK\nDEMONSTRATION', 
+                color='#f59e0b', fontsize=20, ha='center', va='center', weight='bold')
+        ax.axis('off')
+        fig.savefig(SATELLITE_RAW_IMG, bbox_inches='tight', pad_inches=0.1, facecolor='#1e293b')
+        plt.close(fig)
+        
+        raw_meta = {
+            "status": "synthetic_fallback",
+            "scene_id": "SYNTHETIC_LANDSAT_DEMO",
+            "observation_date": today,
+            "sensor": "Synthetic representation",
+            "cloud_cover": 0.0,
+            "source": "Synthetic satellite-input demonstration",
+            "image_url": "/satellite/raw-image"
+        }
+        with open(SATELLITE_RAW_META, "w", encoding="utf-8") as f:
+            json.dump(raw_meta, f, indent=2)
+    except Exception as e:
+        print(f"Failed to save synthetic preview: {e}")
 
     return {
         "rows": rows,

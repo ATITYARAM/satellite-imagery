@@ -173,6 +173,21 @@ def get_satellite_map():
     return read_json_file("outputs/satellite_map.geojson")
 
 
+@app.get("/satellite-map")
+def get_satellite_map():
+    return read_json_file("outputs/satellite_map.geojson")
+
+
+@app.get("/satellite/raw")
+def get_satellite_raw():
+    return read_json_file("outputs/satellite_raw/latest_raw_metadata.json")
+
+
+@app.get("/satellite/raw-image")
+def get_satellite_raw_image():
+    return FileResponse("outputs/satellite_raw/latest_raw_rgb.png")
+
+
 os.makedirs("dist", exist_ok=True)
 os.makedirs("docs", exist_ok=True)
 app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")

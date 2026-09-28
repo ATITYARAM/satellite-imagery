@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
 import StatusPanel from './components/StatusPanel';
 import DetailPanel from './components/DetailPanel';
+import SatelliteRawModal from './components/SatelliteRawModal';
 
 export default function App() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -16,6 +17,11 @@ export default function App() {
   const [pipelineStatus, setPipelineStatus] = useState('Checking...');
   const [satelliteStatus, setSatelliteStatus] = useState('Checking...');
   const [refreshCount, setRefreshCount] = useState(0);
+  const [showRawSatelliteModal, setShowRawSatelliteModal] = useState(false);
+
+  useEffect(() => {
+    window.onSatelliteDoubleClick = () => setShowRawSatelliteModal(true);
+  }, []);
 
   const handleSectionSelect = (sectionId) => {
     setActiveSection(sectionId);
@@ -115,6 +121,9 @@ export default function App() {
             section={activeSection}
             onClose={() => setSelectedSegment(null)}
           />
+        )}
+        {showRawSatelliteModal && (
+          <SatelliteRawModal onClose={() => setShowRawSatelliteModal(false)} />
         )}
       </div>
     </div>
