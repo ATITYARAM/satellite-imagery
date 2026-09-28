@@ -76,7 +76,16 @@ export default function App() {
   }, []);
 
   if (activeSection === 'prediction') {
-    return <XGBoostSatelliteSplit />;
+    return (
+      <div className="app-container">
+        <Sidebar
+          activeSection={activeSection}
+          onSelect={selectSection}
+          onSatelliteDoubleClick={openSatelliteData}
+        />
+        <XGBoostSatelliteSplit />
+      </div>
+    );
   }
 
   return (
