@@ -68,47 +68,39 @@ def satellite_rgb(year: int):
     red_path = year_dir / 'B4_red.tif'
     green_path = year_dir / 'B3_green.tif'
     blue_path = year_dir / 'B2_blue.tif'
+
     if not all(path.exists() for path in (red_path, green_path, blue_path)):
         raise HTTPException(status_code=404, detail='RGB band data not found')
 
-    output_path = year_dir / 'aoi_rgb.png'
-    if not output_path.exists():
-        with rasterio.open(red_path) as red_src, rasterio.open(green_path) as green_src, rasterio.open(blue_path) as blue_src:
-            red = red_src.read(1).astype('float32')
-            green = green_src.read(1).astype('float32')
-            blue = blue_src.read(1).astype('float32')
+    # Render the original downloaded Landsat C2 L2 bands B4/B3/B2 directly.
+    # This is only the physical Level-2 reflectance conversion required to
+    # display the satellite measurements as visible RGB; there is no
+    # percentile stretching, sharpening, classification, index, or ML.
+    output_path = year_dir / 'aoi_raw_true_color.png'
 
-        stack = np.stack([red, green, blue], axis=-1)
-        valid = np.all(np.isfinite(stack) & (stack > 0), axis=-1)
-        if not np.any(valid):
-            raise HTTPException(status_code=422, detail='RGB data contains no valid pixels')
+    with rasterio.open(red_path) as red_src:
+        red_dn = red_src.read(1).astype('float32')
+    with rasterio.open(green_path) as green_src:
+        green_dn = green_src.read(1).astype('float32')
+    with rasterio.open(blue_path) as blue_src:
+        blue_dn = blue_src.read(1).astype('float32')
 
-        rgb = np.zeros_like(stack, dtype='float32')
-        for channel in range(3):
-            values = stack[:, :, channel][valid]
-            low, high = np.percentile(values, [2, 98])
-            if high <= low:
-                high = low + 1.0
-            rgb[:, :, channel] = np.clip(
-                (stack[:, :, channel] - low) / (high - low),
-                0.0,
-                1.0,
-            )
+    red = red_dn * 0.0000275 - 0.2
+    green = green_dn * 0.0000275 - 0.2
+    blue = blue_dn * 0.0000275 - 0.2
 
-        rgb[~valid] = 0.0
+    valid = (red_dn > 0) & (green_dn > 0) & (blue_dn > 0)
+    rgb = np.stack([red, green, blue], axis=-1)
 
-        fig = plt.figure(figsize=(7.2, 10.5), dpi=120, frameon=False)
-        ax = fig.add_axes([0, 0, 1, 1])
-        ax.imshow(rgb, interpolation='nearest')
-        ax.axis('off')
-        fig.savefig(
-            output_path,
-            dpi=120,
-            bbox_inches='tight',
-            pad_inches=0,
-            facecolor='black',
-        )
-        plt.close(fig)
+    # One fixed physical range for both years. This avoids automatic
+    # per-scene contrast changes and keeps the two observations comparable.
+    rgb = np.clip(rgb / 0.30, 0.0, 1.0)
+    rgb[~valid] = 0.0
+
+    if not np.any(valid):
+        raise HTTPException(status_code=422, detail='RGB data contains no valid pixels')
+
+    plt.imsave(output_path, rgb, format='png')
 
     return FileResponse(output_path, media_type='image/png')
 
