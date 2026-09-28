@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Download comparable Landsat AOI data for 2016 and 2026.
 
-Source: Microsoft Planetary Computer, Landsat Collection 2 Level-2.
-The script selects a clear scene intersecting the configured AOI, then reads
-only the AOI from the source COGs. Pixel values are preserved; no indices,
-classification, or ML are applied.
+Uses the public Microsoft Planetary Computer STAC API without EarthExplorer.
+The STAC collection-items endpoint is used directly to avoid the slow QUERY
+extension path. Pixel values are preserved; no indices, classification, or ML
+are applied.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 import planetary_computer
-import pystac_client
+import pystac
 import rasterio
 import requests
 from rasterio.mask import mask
@@ -24,6 +24,10 @@ from rasterio.warp import transform_geom
 ROOT = Path(__file__).resolve().parents[1]
 AOI_PATH = ROOT / "config" / "aoi.geojson"
 DATA_ROOT = ROOT / "data" / "satellite"
+STAC_ITEMS_URL = (
+    "https://planetarycomputer.microsoft.com/api/stac/v1/"
+    "collections/landsat-c2-l2/items"
+)
 
 BANDS = {
     "B2_blue": "blue",
@@ -36,7 +40,7 @@ BANDS = {
 
 YEAR_CONFIG = {
     2016: ("landsat-8", "2016-01-01T00:00:00Z/2016-12-31T23:59:59Z"),
-    2026: ("landsat-9", "2026-01-01T00:00:00Z/2026-12-31T23:59:59Z"),
+    2026: ("landsat-9", "2026-01-01T00:00:00Z/2026-09-28T23:59:59Z"),
 }
 
 
@@ -46,40 +50,56 @@ def load_aoi_geometry() -> dict:
     return geojson["features"][0]["geometry"]
 
 
-def select_scene(year: int, max_cloud: float):
+def load_aoi_bbox() -> list[float]:
+    geometry = load_aoi_geometry()
+    coords = geometry["coordinates"][0]
+    xs = [point[0] for point in coords]
+    ys = [point[1] for point in coords]
+    return [min(xs), min(ys), max(xs), max(ys)]
+
+
+def select_scene(year: int, max_cloud: float) -> pystac.Item:
     platform, date_range = YEAR_CONFIG[year]
 
-    catalog = pystac_client.Client.open(
-        "https://planetarycomputer.microsoft.com/api/stac/v1/",
-        modifier=planetary_computer.sign_inplace,
-    )
+    params = {
+        "bbox": ",".join(str(v) for v in load_aoi_bbox()),
+        "datetime": date_range,
+        "limit": 100,
+    }
 
-    items = list(
-        catalog.search(
-            collections=["landsat-c2-l2"],
-            intersects=load_aoi_geometry(),
-            datetime=date_range,
-            query={
-                "platform": {"eq": platform},
-                "eo:cloud_cover": {"lt": max_cloud},
-            },
-            max_items=100,
-        ).items()
+    response = requests.get(
+        STAC_ITEMS_URL,
+        params=params,
+        timeout=(15, 60),
     )
+    response.raise_for_status()
+    payload = response.json()
 
-    if not items:
+    items = [
+        pystac.Item.from_dict(feature)
+        for feature in payload.get("features", [])
+    ]
+
+    candidates = [
+        item
+        for item in items
+        if item.properties.get("platform") == platform
+        and float(item.properties.get("eo:cloud_cover", 100.0)) < max_cloud
+    ]
+
+    if not candidates:
         raise RuntimeError(
             f"No {platform} Landsat Collection 2 Level-2 scene found for {year} "
             f"with cloud cover < {max_cloud}% over the configured AOI."
         )
 
-    items.sort(
+    candidates.sort(
         key=lambda item: (
             float(item.properties.get("eo:cloud_cover", 100.0)),
             -(item.datetime.timestamp() if item.datetime else 0),
         )
     )
-    return items[0]
+    return candidates[0]
 
 
 def download_year(year: int, max_cloud: float) -> dict:
@@ -91,7 +111,9 @@ def download_year(year: int, max_cloud: float) -> dict:
         "year": year,
         "scene_id": item.id,
         "platform": item.properties.get("platform"),
-        "acquisition_datetime": item.datetime.isoformat() if item.datetime else None,
+        "acquisition_datetime": item.datetime.isoformat()
+        if item.datetime
+        else None,
         "cloud_cover_percent": item.properties.get("eo:cloud_cover"),
         "collection": "landsat-c2-l2",
         "source": "Microsoft Planetary Computer",
