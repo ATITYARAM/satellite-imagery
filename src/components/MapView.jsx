@@ -81,7 +81,9 @@ export default function MapView({ activeSection, mapData, satelliteMapData, onSe
                       <strong>Priority:</strong> {p.priority_class || 'N/A'}<br />
                     </>
                   ) : (
-                    <strong>Domain:</strong> {currentInfo.name}<br />
+                    <>
+                      <strong>Domain:</strong> {currentInfo.name}<br />
+                    </>
                   )}
                   <strong>Coordinates:</strong> {fmt(coords[1], 4)}, {fmt(coords[0], 4)}
                 </div>

@@ -1,0 +1,9 @@
+{
+  "status": "synthetic_fallback",
+  "scene_id": "SYNTHETIC_LANDSAT_DEMO",
+  "observation_date": "2026-09-28",
+  "sensor": "Synthetic representation",
+  "cloud_cover": 0.0,
+  "source": "Synthetic satellite-input demonstration",
+  "image_url": "/satellite/raw-image"
+}
