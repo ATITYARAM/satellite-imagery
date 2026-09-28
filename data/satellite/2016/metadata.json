@@ -1,0 +1,73 @@
+{
+  "year": 2016,
+  "scene_id": "LC08_L2SP_142051_20160423_02_T1",
+  "platform": "landsat-8",
+  "acquisition_datetime": "2016-04-23T04:58:01.892010+00:00",
+  "cloud_cover_percent": 0.23,
+  "collection": "landsat-c2-l2",
+  "source": "Microsoft Planetary Computer",
+  "aoi_file": "config/aoi.geojson",
+  "bands": {
+    "B2_blue": {
+      "asset": "blue",
+      "path": "data/satellite/2016/B2_blue.tif",
+      "dtype": "uint16",
+      "width": 730,
+      "height": 1847,
+      "crs": "EPSG:32644",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B3_green": {
+      "asset": "green",
+      "path": "data/satellite/2016/B3_green.tif",
+      "dtype": "uint16",
+      "width": 730,
+      "height": 1847,
+      "crs": "EPSG:32644",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B4_red": {
+      "asset": "red",
+      "path": "data/satellite/2016/B4_red.tif",
+      "dtype": "uint16",
+      "width": 730,
+      "height": 1847,
+      "crs": "EPSG:32644",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B5_nir": {
+      "asset": "nir08",
+      "path": "data/satellite/2016/B5_nir.tif",
+      "dtype": "uint16",
+      "width": 730,
+      "height": 1847,
+      "crs": "EPSG:32644",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B6_swir1": {
+      "asset": "swir16",
+      "path": "data/satellite/2016/B6_swir1.tif",
+      "dtype": "uint16",
+      "width": 730,
+      "height": 1847,
+      "crs": "EPSG:32644",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B7_swir2": {
+      "asset": "swir22",
+      "path": "data/satellite/2016/B7_swir2.tif",
+      "dtype": "uint16",
+      "width": 730,
+      "height": 1847,
+      "crs": "EPSG:32644",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    }
+  },
+  "preview": "scene_preview.jpg"
+}
