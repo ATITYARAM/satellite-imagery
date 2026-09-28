@@ -43,3 +43,7 @@ button, a { font: inherit; }
 .satellite-links a:hover { background: #334155; color: #fff; }
 .satellite-empty { height: 220px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #94a3b8; gap: 6px; }
 @media (max-width: 900px) { .satellite-panel { left: 18px; right: 18px; width: auto; } .satellite-cards { grid-template-columns: 1fr; } }
+
+.satellite-panel { position: relative; }
+.satellite-close { position:absolute; top:9px; right:10px; z-index:2; width:24px; height:24px; border:0; border-radius:6px; background:rgba(255,255,255,.08); color:#cbd5e1; font-size:18px; line-height:24px; cursor:pointer; }
+.satellite-close:hover { background:rgba(255,255,255,.16); color:#fff; }
