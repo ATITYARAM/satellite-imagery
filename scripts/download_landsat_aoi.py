@@ -15,6 +15,7 @@ from pathlib import Path
 
 import planetary_computer
 import pystac
+import pystac_client
 import rasterio
 import requests
 from rasterio.mask import mask
@@ -24,10 +25,7 @@ from rasterio.warp import transform_geom
 ROOT = Path(__file__).resolve().parents[1]
 AOI_PATH = ROOT / "config" / "aoi.geojson"
 DATA_ROOT = ROOT / "data" / "satellite"
-STAC_ITEMS_URL = (
-    "https://planetarycomputer.microsoft.com/api/stac/v1/"
-    "collections/landsat-c2-l2/items"
-)
+STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/"
 
 BANDS = {
     "B2_blue": "blue",
@@ -63,37 +61,38 @@ def load_aoi_bbox() -> list[float]:
 
 def select_scene(year: int, max_cloud: float) -> pystac.Item:
     platforms, date_range = YEAR_CONFIG[year]
+    start, stop = date_range.split("/")
 
-    params = {
-        "bbox": ",".join(str(v) for v in load_aoi_bbox()),
-        "datetime": date_range,
-        "limit": 100,
-    }
-
-    response = requests.get(
-        STAC_ITEMS_URL,
-        params=params,
-        timeout=(15, 60),
+    catalog = pystac_client.Client.open(
+        STAC_URL,
+        modifier=planetary_computer.sign_inplace,
     )
-    response.raise_for_status()
-    payload = response.json()
 
-    items = [
-        pystac.Item.from_dict(feature)
-        for feature in payload.get("features", [])
-    ]
+    # Use the STAC /search endpoint with bbox + datetime only. This avoids the
+    # server's slow QUERY extension and keeps the temporal filter server-side.
+    search = catalog.search(
+        collections=["landsat-c2-l2"],
+        bbox=load_aoi_bbox(),
+        datetime=[start, stop],
+        limit=100,
+    )
+
+    items = list(search.items())
 
     candidates = [
         item
         for item in items
         if item.properties.get("platform") in platforms
+        and item.datetime is not None
+        and item.datetime.year == year
         and float(item.properties.get("eo:cloud_cover", 100.0)) < max_cloud
     ]
 
     if not candidates:
         raise RuntimeError(
-            f"No Landsat 8/9 Collection 2 Level-2 scene found for {year} "
-            f"with cloud cover < {max_cloud}% over the configured AOI."
+            f"No Landsat 8/9 Collection 2 Level-2 scene actually acquired in "
+            f"{year} was returned for the configured AOI with cloud cover "
+            f"< {max_cloud}%."
         )
 
     candidates.sort(
