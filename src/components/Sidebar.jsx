@@ -10,7 +10,7 @@ export const SECTIONS = [
   { id: 'prediction', name: '6. AI Master Prediction', icon: Cpu, color: '#ef4444', desc: 'Five-Domain ML Fusion', isAI: true },
 ];
 
-export default function Sidebar({ activeSection, onSelect }) {
+export default function Sidebar({ activeSection, onSelect, onSatelliteDoubleClick }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -21,13 +21,20 @@ export default function Sidebar({ activeSection, onSelect }) {
         {SECTIONS.map((section) => {
           const Icon = section.icon;
           const active = activeSection === section.id;
+          const handleClick = () => onSelect(section.id);
+          const handleDoubleClick = () => {
+            if (section.id === 'satellite') onSatelliteDoubleClick();
+          };
+
           return (
             <button
               key={section.id}
               type="button"
               className={['section-btn', active ? 'active' : '', active && section.isAI ? 'ai-active' : ''].join(' ')}
-              onClick={() => onSelect(section.id)}
+              onClick={handleClick}
+              onDoubleClick={handleDoubleClick}
               aria-current={active ? 'page' : undefined}
+              title={section.id === 'satellite' ? 'Double-click to open raw satellite data' : undefined}
             >
               <span className="section-content">
                 <Icon size={20} color={section.color} />
