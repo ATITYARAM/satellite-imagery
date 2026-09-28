@@ -39,8 +39,11 @@ BANDS = {
 }
 
 YEAR_CONFIG = {
-    2016: ("landsat-8", "2016-01-01T00:00:00Z/2016-12-31T23:59:59Z"),
-    2026: ("landsat-9", "2026-01-01T00:00:00Z/2026-09-28T23:59:59Z"),
+    # Landsat 8 is used for 2016.
+    2016: (("landsat-8",), "2016-01-01T00:00:00Z/2016-12-31T23:59:59Z"),
+    # In 2026 both Landsat 8 and Landsat 9 are valid; use whichever current
+    # scene is available over the AOI. Landsat 9 L2 can lag recent acquisitions.
+    2026: (("landsat-9", "landsat-8"), "2026-01-01T00:00:00Z/2026-09-28T23:59:59Z"),
 }
 
 
@@ -59,7 +62,7 @@ def load_aoi_bbox() -> list[float]:
 
 
 def select_scene(year: int, max_cloud: float) -> pystac.Item:
-    platform, date_range = YEAR_CONFIG[year]
+    platforms, date_range = YEAR_CONFIG[year]
 
     params = {
         "bbox": ",".join(str(v) for v in load_aoi_bbox()),
@@ -83,13 +86,13 @@ def select_scene(year: int, max_cloud: float) -> pystac.Item:
     candidates = [
         item
         for item in items
-        if item.properties.get("platform") == platform
+        if item.properties.get("platform") in platforms
         and float(item.properties.get("eo:cloud_cover", 100.0)) < max_cloud
     ]
 
     if not candidates:
         raise RuntimeError(
-            f"No {platform} Landsat Collection 2 Level-2 scene found for {year} "
+            f"No Landsat 8/9 Collection 2 Level-2 scene found for {year} "
             f"with cloud cover < {max_cloud}% over the configured AOI."
         )
 
