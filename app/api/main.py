@@ -126,8 +126,8 @@ def get_domain_data(domain: str):
         return {"error": str(e)}
 
 # Serve static dashboard
-os.makedirs("dashboard", exist_ok=True)
-app.mount("/dashboard_static", StaticFiles(directory="dashboard", html=True), name="dashboard_static")
+os.makedirs("dist", exist_ok=True)
+app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 app.mount("/docs_static", StaticFiles(directory="docs"), name="docs_static")
 
 @app.get("/")
@@ -137,4 +137,4 @@ def read_root():
 @app.get("/dashboard")
 @app.get("/dashboard/")
 def read_dashboard():
-    return FileResponse("dashboard/index.html")
+    return FileResponse("dist/index.html")
