@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { Map, Satellite } from 'lucide-react';
 import Sidebar, { SECTIONS } from './components/Sidebar';
 import MapView from './components/MapView';
 
-function XGBoostSatelliteSplit() {
+function XGBoostSatelliteSplit({ onToggleView }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -29,6 +30,16 @@ function XGBoostSatelliteSplit() {
 
   return (
     <main className="xgboost-satellite-split" aria-label="Raw satellite imagery comparison">
+      <button
+        type="button"
+        className="xgboost-view-toggle"
+        onClick={onToggleView}
+        title="Show map view"
+        aria-label="Show map view"
+      >
+        <Map size={19} />
+      </button>
+
       <section className="split-side split-side-left">
         {left?.available ? <img src={left.preview_url} alt="2016 raw satellite imagery" /> : null}
       </section>
@@ -47,6 +58,7 @@ export default function App() {
     : 'prediction';
 
   const [satelliteDataOpen, setSatelliteDataOpen] = useState(false);
+  const [xgboostSplitView, setXgboostSplitView] = useState(true);
 
   const selectSection = (sectionId) => {
     window.history.pushState({}, '', '?section=' + sectionId);
@@ -73,7 +85,23 @@ export default function App() {
           onSelect={selectSection}
           onSatelliteDoubleClick={openSatelliteData}
         />
-        <XGBoostSatelliteSplit />
+
+        {xgboostSplitView ? (
+          <XGBoostSatelliteSplit onToggleView={() => setXgboostSplitView(false)} />
+        ) : (
+          <main className="xgboost-map-view">
+            <button
+              type="button"
+              className="xgboost-view-toggle"
+              onClick={() => setXgboostSplitView(true)}
+              title="Show raw satellite comparison"
+              aria-label="Show raw satellite comparison"
+            >
+              <Satellite size={19} />
+            </button>
+            <MapView activeSection={activeSection} satelliteDataOpen={false} />
+          </main>
+        )}
       </div>
     );
   }
