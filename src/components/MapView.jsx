@@ -33,8 +33,8 @@ export default function MapView({ activeSection, mapData, onSegmentSelect }) {
 
       <MapContainer center={CHENNAI_CENTER} zoom={10} style={{ height: '100%', width: '100%', backgroundColor: '#0f172a' }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         {mapData && mapData.features && mapData.features.map((feature, idx) => {
