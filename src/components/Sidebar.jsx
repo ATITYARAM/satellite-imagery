@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudRain, Mountain, Waves, History, Cpu, ChevronRight, Activity } from 'lucide-react';
+import { CloudRain, Mountain, Waves, History, Cpu, ChevronRight, Activity, BarChart3 } from 'lucide-react';
 
 export const SECTIONS = [
   { id: 'satellite', name: '1. Satellite Imagery', icon: Activity, color: '#3b82f6', desc: 'Raw Satellite Input' },
@@ -7,7 +7,8 @@ export const SECTIONS = [
   { id: 'terrain', name: '3. Terrain', icon: Mountain, color: '#10b981', desc: 'Elevation & Coastal Topography' },
   { id: 'weather', name: '4. Rainfall / Weather', icon: CloudRain, color: '#f59e0b', desc: 'Precipitation & Atmospheric Forcing' },
   { id: 'ocean', name: '5. Ocean Conditions', icon: Waves, color: '#06b6d4', desc: 'Wave & Hydrodynamic Forcing' },
-  { id: 'prediction', name: '6. XGBoost', icon: Cpu, color: '#ef4444', desc: 'Five-Domain ML Fusion', isAI: true },
+  { id: 'prediction', name: '6. XGBoost', icon: Cpu, color: '#ef4444', desc: 'ML Processing', isAI: true },
+  { id: 'result', name: 'RESULT', icon: BarChart3, color: '#f97316', desc: 'XGBoost Output' },
 ];
 
 export default function Sidebar({ activeSection, onSelect, onSatelliteDoubleClick }) {
@@ -30,7 +31,12 @@ export default function Sidebar({ activeSection, onSelect, onSatelliteDoubleClic
             <button
               key={section.id}
               type="button"
-              className={['section-btn', active ? 'active' : '', active && section.isAI ? 'ai-active' : ''].join(' ')}
+              className={[
+                'section-btn',
+                active ? 'active' : '',
+                active && section.isAI ? 'ai-active' : '',
+                active && section.id === 'result' ? 'result-active' : '',
+              ].join(' ')}
               onClick={handleClick}
               onDoubleClick={handleDoubleClick}
               aria-current={active ? 'page' : undefined}
