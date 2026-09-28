@@ -45,6 +45,7 @@ def satellite_data():
             metadata = json.load(handle)
         metadata['available'] = True
         metadata['preview_url'] = f'/satellite/rgb/{year}.png'
+        metadata['color_preview_url'] = f'/satellite/color/{year}.png'
         metadata['download_urls'] = {
             name: f'/satellite-data/{year}/{Path(info["path"]).name}'
             for name, info in metadata.get('bands', {}).items()
@@ -102,6 +103,46 @@ def satellite_rgb(year: int):
 
     plt.imsave(output_path, rgb, format='png')
 
+    return FileResponse(output_path, media_type='image/png')
+
+
+@app.get('/satellite/color/{year}.png')
+def satellite_color(year: int):
+    if year not in (2016, 2026):
+        raise HTTPException(status_code=404, detail='Satellite year not found')
+
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import rasterio
+
+    year_dir = DATA_ROOT / str(year)
+    red_path = year_dir / 'B4_red.tif'
+    green_path = year_dir / 'B3_green.tif'
+    blue_path = year_dir / 'B2_blue.tif'
+
+    if not all(path.exists() for path in (red_path, green_path, blue_path)):
+        raise HTTPException(status_code=404, detail='RGB band data not found')
+
+    output_path = year_dir / 'aoi_color_true_color.png'
+
+    bands = []
+    for path in (red_path, green_path, blue_path):
+        with rasterio.open(path) as src:
+            dn = src.read(1).astype('float32')
+        reflectance = dn * 0.0000275 - 0.2
+        valid = dn > 0
+        values = reflectance[valid]
+        if values.size == 0:
+            raise HTTPException(status_code=422, detail='RGB data contains no valid pixels')
+        low, high = np.percentile(values, (2, 98))
+        band = np.clip((reflectance - low) / max(high - low, 1e-6), 0.0, 1.0)
+        band[~valid] = 0.0
+        bands.append(band)
+
+    rgb = np.stack(bands, axis=-1)
+    plt.imsave(output_path, rgb, format='png')
     return FileResponse(output_path, media_type='image/png')
 
 @app.get('/aoi')
