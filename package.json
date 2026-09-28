@@ -1,7 +1,7 @@
 {
-  "name": "coastal-erosion-platform",
+  "name": "satellite-imagery",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +20,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "gh-pages": "^6.3.0",
     "oxlint": "^1.75.0",
     "vite": "^8.2.0"
   }
