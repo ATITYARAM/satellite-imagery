@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DIST_DIR = ROOT / 'dist'
 DOCS_DIR = ROOT / 'docs'
 AOI_PATH = ROOT / 'config' / 'aoi.geojson'
+DATA_ROOT = ROOT / 'data' / 'satellite'
 
 app = FastAPI(title='Coastal Erosion Prediction Platform API', version='0.1.0')
 
