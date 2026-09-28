@@ -4,11 +4,12 @@ import { SECTIONS } from './Sidebar';
 
 const DEFAULT_CENTER = [12.8, 80.2];
 
-function SatellitePanel({ data }) {
+function SatellitePanel({ data, onClose }) {
   const years = ['2016', '2026'];
 
   return (
     <div className="satellite-panel">
+      <button type="button" className="satellite-close" onClick={onClose} aria-label="Close raw satellite data">×</button>
       <div className="satellite-panel-header">
         <div>
           <strong>Raw Satellite Data</strong>
@@ -96,7 +97,7 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
         <span>Active View: {current.name}</span>
       </div>
 
-      {activeSection === 'satellite' && satelliteDataOpen && <SatellitePanel data={satelliteData} />}
+      {activeSection === 'satellite' && satelliteDataOpen && <SatellitePanel data={satelliteData} onClose={() => window.dispatchEvent(new CustomEvent('close-satellite-data'))} />}
 
       <MapContainer center={DEFAULT_CENTER} zoom={10} minZoom={8} maxZoom={18} zoomControl style={{ height: '100%', width: '100%' }}>
         <TileLayer
