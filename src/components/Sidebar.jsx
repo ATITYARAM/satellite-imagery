@@ -7,7 +7,7 @@ export const SECTIONS = [
   { id: 'terrain', name: '3. Terrain', icon: Mountain, color: '#10b981', desc: 'Elevation & Coastal Topography' },
   { id: 'weather', name: '4. Rainfall / Weather', icon: CloudRain, color: '#f59e0b', desc: 'Precipitation & Atmospheric Forcing' },
   { id: 'ocean', name: '5. Ocean Conditions', icon: Waves, color: '#06b6d4', desc: 'Wave & Hydrodynamic Forcing' },
-  { id: 'prediction', name: '6. AI Master Prediction', icon: Cpu, color: '#ef4444', desc: 'Five-Domain ML Fusion', isAI: true },
+  { id: 'prediction', name: '6. XGBoost', icon: Cpu, color: '#ef4444', desc: 'Five-Domain ML Fusion', isAI: true },
 ];
 
 export default function Sidebar({ activeSection, onSelect, onSatelliteDoubleClick }) {
