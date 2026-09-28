@@ -31,6 +31,27 @@ def project_info():
 def domains():
     return ['satellite', 'history', 'terrain', 'weather', 'ocean', 'prediction']
 
+@app.get('/satellite/data')
+def satellite_data():
+    result = {'source': 'Microsoft Planetary Computer', 'years': {}}
+    for year in (2016, 2026):
+        year_dir = DATA_ROOT / str(year)
+        metadata_path = year_dir / 'metadata.json'
+        if not metadata_path.exists():
+            result['years'][str(year)] = {'available': False}
+            continue
+        with metadata_path.open('r', encoding='utf-8') as handle:
+            metadata = json.load(handle)
+        metadata['available'] = True
+        metadata['preview_url'] = f'/satellite-data/{year}/scene_preview.jpg'
+        metadata['download_urls'] = {
+            name: f'/satellite-data/{year}/{Path(info["path"]).name}'
+            for name, info in metadata.get('bands', {}).items()
+        }
+        metadata['metadata_url'] = f'/satellite-data/{year}/metadata.json'
+        result['years'][str(year)] = metadata
+    return result
+
 @app.get('/aoi')
 def aoi():
     if not AOI_PATH.exists():
@@ -38,6 +59,8 @@ def aoi():
     with AOI_PATH.open('r', encoding='utf-8') as handle:
         return json.load(handle)
 
+if DATA_ROOT.exists():
+    app.mount('/satellite-data', StaticFiles(directory=DATA_ROOT), name='satellite-data')
 if DIST_DIR.exists() and (DIST_DIR / 'assets').exists():
     app.mount('/assets', StaticFiles(directory=DIST_DIR / 'assets'), name='assets')
 if DOCS_DIR.exists():
