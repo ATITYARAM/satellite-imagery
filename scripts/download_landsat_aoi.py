@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Download the same Chennai–Mahabalipuram Landsat AOI for 2016 and 2026.
+"""Download comparable Landsat AOI data for 2016 and 2026.
 
-Uses the public Microsoft Planetary Computer STAC API; no EarthExplorer login.
-The selected scene is the clearest available scene for the requested year and
-satellite. Only the configured AOI is read from the cloud-optimized GeoTIFFs;
-pixel values are preserved (no indices, classification, or ML).
+Source: Microsoft Planetary Computer, Landsat Collection 2 Level-2.
+The script selects a clear scene intersecting the configured AOI, then reads
+only the AOI from the source COGs. Pixel values are preserved; no indices,
+classification, or ML are applied.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 import planetary_computer
 import pystac_client
 import rasterio
+import requests
 from rasterio.mask import mask
-from shapely.geometry import mapping, shape
+from rasterio.warp import transform_geom
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,12 +40,10 @@ YEAR_CONFIG = {
 }
 
 
-def load_aoi() -> dict:
+def load_aoi_geometry() -> dict:
     with AOI_PATH.open("r", encoding="utf-8") as f:
         geojson = json.load(f)
-
-    geometry = shape(geojson["features"][0]["geometry"])
-    return mapping(geometry)
+    return geojson["features"][0]["geometry"]
 
 
 def select_scene(year: int, max_cloud: float):
@@ -56,25 +54,25 @@ def select_scene(year: int, max_cloud: float):
         modifier=planetary_computer.sign_inplace,
     )
 
-    search = catalog.search(
-        collections=["landsat-c2-l2"],
-        intersects=load_aoi(),
-        datetime=date_range,
-        query={
-            "platform": {"eq": platform},
-            "eo:cloud_cover": {"lt": max_cloud},
-        },
-        max_items=100,
+    items = list(
+        catalog.search(
+            collections=["landsat-c2-l2"],
+            intersects=load_aoi_geometry(),
+            datetime=date_range,
+            query={
+                "platform": {"eq": platform},
+                "eo:cloud_cover": {"lt": max_cloud},
+            },
+            max_items=100,
+        ).items()
     )
 
-    items = list(search.items())
     if not items:
         raise RuntimeError(
             f"No {platform} Landsat Collection 2 Level-2 scene found for {year} "
             f"with cloud cover < {max_cloud}% over the configured AOI."
         )
 
-    # Prefer low cloud cover, then the most recent acquisition.
     items.sort(
         key=lambda item: (
             float(item.properties.get("eo:cloud_cover", 100.0)),
@@ -85,7 +83,6 @@ def select_scene(year: int, max_cloud: float):
 
 
 def download_year(year: int, max_cloud: float) -> dict:
-    aoi = load_aoi()
     item = select_scene(year, max_cloud)
     out_dir = DATA_ROOT / str(year)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -94,9 +91,7 @@ def download_year(year: int, max_cloud: float) -> dict:
         "year": year,
         "scene_id": item.id,
         "platform": item.properties.get("platform"),
-        "acquisition_datetime": item.datetime.astimezone(timezone.utc).isoformat()
-        if item.datetime
-        else None,
+        "acquisition_datetime": item.datetime.isoformat() if item.datetime else None,
         "cloud_cover_percent": item.properties.get("eo:cloud_cover"),
         "collection": "landsat-c2-l2",
         "source": "Microsoft Planetary Computer",
@@ -104,28 +99,39 @@ def download_year(year: int, max_cloud: float) -> dict:
         "bands": {},
     }
 
-    # Save the scene preview for quick inspection when available.
     preview = item.assets.get("rendered_preview") or item.assets.get("thumbnail")
     if preview:
-        preview_path = out_dir / "scene_preview.jpg"
-        signed = planetary_computer.sign(preview.href)
-        import requests
-
-        response = requests.get(signed, timeout=60)
+        response = requests.get(
+            planetary_computer.sign(preview.href),
+            timeout=60,
+        )
         response.raise_for_status()
-        preview_path.write_bytes(response.content)
-        metadata["preview"] = preview_path.name
+        (out_dir / "scene_preview.jpg").write_bytes(response.content)
+        metadata["preview"] = "scene_preview.jpg"
+
+    aoi_geometry = load_aoi_geometry()
 
     for name, asset_key in BANDS.items():
         asset = item.assets.get(asset_key)
         if asset is None:
             raise RuntimeError(f"Scene {item.id} is missing asset '{asset_key}'.")
 
-        href = planetary_computer.sign(asset.href)
         out_path = out_dir / f"{name}.tif"
 
-        with rasterio.open(href) as src:
-            clipped, transform = mask(src, [aoi], crop=True)
+        with rasterio.open(planetary_computer.sign(asset.href)) as src:
+            aoi_in_raster_crs = transform_geom(
+                "EPSG:4326",
+                src.crs,
+                aoi_geometry,
+                precision=6,
+            )
+
+            clipped, transform = mask(
+                src,
+                [aoi_in_raster_crs],
+                crop=True,
+            )
+
             profile = src.profile.copy()
             profile.update(
                 driver="GTiff",
@@ -150,7 +156,8 @@ def download_year(year: int, max_cloud: float) -> dict:
             }
 
     (out_dir / "metadata.json").write_text(
-        json.dumps(metadata, indent=2), encoding="utf-8"
+        json.dumps(metadata, indent=2),
+        encoding="utf-8",
     )
     return metadata
 
@@ -172,8 +179,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    years = args.year or [2016, 2026]
-    for year in years:
+    for year in args.year or [2016, 2026]:
         metadata = download_year(year, args.max_cloud)
         print(
             f"{year}: {metadata['scene_id']} | "
