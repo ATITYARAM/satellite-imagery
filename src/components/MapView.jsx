@@ -58,7 +58,7 @@ function SatellitePanel({ data }) {
   );
 }
 
-export default function MapView({ activeSection }) {
+export default function MapView({ activeSection, satelliteDataOpen }) {
   const [aoi, setAoi] = useState(null);
   const [satelliteData, setSatelliteData] = useState(null);
 
@@ -72,14 +72,14 @@ export default function MapView({ activeSection }) {
   }, []);
 
   useEffect(() => {
-    if (activeSection !== 'satellite') return undefined;
+    if (activeSection !== 'satellite' || !satelliteDataOpen) return undefined;
     let cancelled = false;
     fetch('/satellite/data')
       .then((response) => { if (!response.ok) throw new Error('Satellite data unavailable'); return response.json(); })
       .then((data) => { if (!cancelled) setSatelliteData(data); })
       .catch(() => { if (!cancelled) setSatelliteData(null); });
     return () => { cancelled = true; };
-  }, [activeSection]);
+  }, [activeSection, satelliteDataOpen]);
 
   const current = useMemo(() => SECTIONS.find((section) => section.id === activeSection) || SECTIONS[0], [activeSection]);
   const Icon = current.icon;
@@ -96,7 +96,7 @@ export default function MapView({ activeSection }) {
         <span>Active View: {current.name}</span>
       </div>
 
-      {activeSection === 'satellite' && <SatellitePanel data={satelliteData} />}
+      {activeSection === 'satellite' && satelliteDataOpen && <SatellitePanel data={satelliteData} />}
 
       <MapContainer center={DEFAULT_CENTER} zoom={10} minZoom={8} maxZoom={18} zoomControl style={{ height: '100%', width: '100%' }}>
         <TileLayer
