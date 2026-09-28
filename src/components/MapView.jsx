@@ -8,50 +8,29 @@ function SatellitePanel({ data, onClose }) {
   const years = ['2016', '2026'];
 
   return (
-    <div className="satellite-panel">
-      <button type="button" className="satellite-close" onClick={onClose} aria-label="Close raw satellite data">×</button>
-      <div className="satellite-panel-header">
-        <div>
-          <strong>Raw Satellite Data</strong>
-          <span>Same AOI · Landsat Collection 2 Level-2</span>
-        </div>
-        <span className="data-status">LIVE DATA</span>
-      </div>
+    <div className="satellite-panel raw-image-only">
+      <button
+        type="button"
+        className="satellite-close"
+        onClick={onClose}
+        aria-label="Close raw satellite data"
+      >
+        ×
+      </button>
 
-      <div className="satellite-cards">
+      <div className="raw-image-split">
         {years.map((year) => {
           const item = data?.years?.[year];
+
           return (
-            <article className="satellite-card" key={year}>
+            <div className="raw-image-side" key={year}>
               {item?.available ? (
-                <>
-                  <img
-                    src={item.preview_url}
-                    alt={year + ' Landsat scene preview'}
-                    className="satellite-preview"
-                  />
-                  <div className="satellite-card-body">
-                    <div className="satellite-year">{year}</div>
-                    <div className="satellite-scene">{item.scene_id}</div>
-                    <div className="satellite-meta">
-                      <span>{new Date(item.acquisition_datetime).toLocaleDateString()}</span>
-                      <span>{Number(item.cloud_cover_percent).toFixed(2)}% cloud</span>
-                    </div>
-                    <div className="satellite-links">
-                      {Object.entries(item.download_urls || {}).map(([name, url]) => (
-                        <a href={url} download key={name}>{name.replace('B2_', 'B2 ').replace('B3_', 'B3 ').replace('B4_', 'B4 ').replace('B5_', 'B5 ').replace('B6_', 'B6 ').replace('B7_', 'B7 ')}</a>
-                      ))}
-                      <a href={item.metadata_url} target="_blank" rel="noreferrer">metadata</a>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="satellite-empty">
-                  <div className="satellite-year">{year}</div>
-                  <span>Data not found locally.</span>
-                </div>
-              )}
-            </article>
+                <img
+                  src={item.preview_url}
+                  alt={year + ' raw satellite imagery'}
+                />
+              ) : null}
+            </div>
           );
         })}
       </div>
