@@ -7,6 +7,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.domains.xgboost_pipeline import RESULT_IMAGE, run_xgboost
+
 ROOT = Path(__file__).resolve().parents[2]
 DIST_DIR = ROOT / 'dist'
 DOCS_DIR = ROOT / 'docs'
@@ -30,7 +32,7 @@ def project_info():
 
 @app.get('/domains')
 def domains():
-    return ['satellite', 'history', 'terrain', 'weather', 'ocean', 'prediction']
+    return ['satellite', 'history', 'terrain', 'weather', 'ocean', 'prediction', 'result']
 
 @app.get('/satellite/data')
 def satellite_data():
@@ -144,6 +146,30 @@ def satellite_color(year: int):
     rgb = np.stack(bands, axis=-1)
     plt.imsave(output_path, rgb, format='png')
     return FileResponse(output_path, media_type='image/png')
+
+
+@app.get('/xgboost/result')
+def xgboost_result(force: bool = False):
+    try:
+        return run_xgboost(force=force)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f'XGBoost run failed: {exc}') from exc
+
+
+@app.get('/xgboost/result.png')
+def xgboost_result_image():
+    try:
+        run_xgboost(force=False)
+        if not RESULT_IMAGE.exists():
+            raise FileNotFoundError('XGBoost result image was not created')
+        return FileResponse(RESULT_IMAGE, media_type='image/png')
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f'XGBoost result image failed: {exc}') from exc
+
 
 @app.get('/aoi')
 def aoi():
