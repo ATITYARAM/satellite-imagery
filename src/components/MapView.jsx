@@ -4,8 +4,63 @@ import { SECTIONS } from './Sidebar';
 
 const DEFAULT_CENTER = [12.8, 80.2];
 
+function SatellitePanel({ data }) {
+  const years = ['2016', '2026'];
+
+  return (
+    <div className="satellite-panel">
+      <div className="satellite-panel-header">
+        <div>
+          <strong>Raw Satellite Data</strong>
+          <span>Same AOI · Landsat Collection 2 Level-2</span>
+        </div>
+        <span className="data-status">LIVE DATA</span>
+      </div>
+
+      <div className="satellite-cards">
+        {years.map((year) => {
+          const item = data?.years?.[year];
+          return (
+            <article className="satellite-card" key={year}>
+              {item?.available ? (
+                <>
+                  <img
+                    src={item.preview_url}
+                    alt={year + ' Landsat scene preview'}
+                    className="satellite-preview"
+                  />
+                  <div className="satellite-card-body">
+                    <div className="satellite-year">{year}</div>
+                    <div className="satellite-scene">{item.scene_id}</div>
+                    <div className="satellite-meta">
+                      <span>{new Date(item.acquisition_datetime).toLocaleDateString()}</span>
+                      <span>{Number(item.cloud_cover_percent).toFixed(2)}% cloud</span>
+                    </div>
+                    <div className="satellite-links">
+                      {Object.entries(item.download_urls || {}).map(([name, url]) => (
+                        <a href={url} download key={name}>{name.replace('B2_', 'B2 ').replace('B3_', 'B3 ').replace('B4_', 'B4 ').replace('B5_', 'B5 ').replace('B6_', 'B6 ').replace('B7_', 'B7 ')}</a>
+                      ))}
+                      <a href={item.metadata_url} target="_blank" rel="noreferrer">metadata</a>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="satellite-empty">
+                  <div className="satellite-year">{year}</div>
+                  <span>Data not found locally.</span>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function MapView({ activeSection }) {
   const [aoi, setAoi] = useState(null);
+  const [satelliteData, setSatelliteData] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -15,6 +70,16 @@ export default function MapView({ activeSection }) {
       .catch(() => { if (!cancelled) setAoi(null); });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (activeSection !== 'satellite') return undefined;
+    let cancelled = false;
+    fetch('/satellite/data')
+      .then((response) => { if (!response.ok) throw new Error('Satellite data unavailable'); return response.json(); })
+      .then((data) => { if (!cancelled) setSatelliteData(data); })
+      .catch(() => { if (!cancelled) setSatelliteData(null); });
+    return () => { cancelled = true; };
+  }, [activeSection]);
 
   const current = useMemo(() => SECTIONS.find((section) => section.id === activeSection) || SECTIONS[0], [activeSection]);
   const Icon = current.icon;
@@ -30,6 +95,9 @@ export default function MapView({ activeSection }) {
         <Icon size={18} color={current.color} />
         <span>Active View: {current.name}</span>
       </div>
+
+      {activeSection === 'satellite' && <SatellitePanel data={satelliteData} />}
+
       <MapContainer center={DEFAULT_CENTER} zoom={10} minZoom={8} maxZoom={18} zoomControl style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
@@ -39,10 +107,13 @@ export default function MapView({ activeSection }) {
           <Polygon positions={polygonPositions} pathOptions={{ color: '#38bdf8', weight: 2, fillColor: '#38bdf8', fillOpacity: 0.05 }} />
         )}
       </MapContainer>
-      <div className="map-stage-label">
-        <strong>{current.name}</strong>
-        <span>Domain output will be added here as each research system is implemented.</span>
-      </div>
+
+      {activeSection !== 'satellite' && (
+        <div className="map-stage-label">
+          <strong>{current.name}</strong>
+          <span>Domain output will be added here as each research system is implemented.</span>
+        </div>
+      )}
     </main>
   );
 }
