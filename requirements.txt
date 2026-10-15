@@ -13,3 +13,4 @@ python-dotenv
 rasterio
 pystac
 planetary-computer
+pystac-client
