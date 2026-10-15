@@ -135,10 +135,32 @@ def _build_features(
 
 
 def _signature() -> str:
+    with (ROOT / "config" / "aoi.geojson").open("r", encoding="utf-8") as handle:
+        geojson = json.load(handle)
+    ring = geojson["features"][0]["geometry"]["coordinates"][0]
+    xs = [point[0] for point in ring]
+    ys = [point[1] for point in ring]
+    expected_bounds = [round(min(xs), 6), round(min(ys), 6), round(max(xs), 6), round(max(ys), 6)]
+
     parts = []
     for year in YEARS:
+        year_dir = DATA_ROOT / str(year)
+        metadata_path = year_dir / "metadata.json"
+        if not metadata_path.exists():
+            raise FileNotFoundError(
+                f"No satellite metadata for {year}. Download imagery for the current AOI "
+                "with: python scripts/download_landsat_aoi.py"
+            )
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata.get("aoi_bounds") != expected_bounds:
+            raise RuntimeError(
+                f"The {year} satellite data belongs to a different or unverified AOI. "
+                "Download matching Thiruvananthapuram imagery with: "
+                "python scripts/download_landsat_aoi.py"
+            )
+
         for filename in BAND_FILES.values():
-            path = DATA_ROOT / str(year) / filename
+            path = year_dir / filename
             if not path.exists():
                 raise FileNotFoundError(f"Missing input band: {path}")
             stat = path.stat()
