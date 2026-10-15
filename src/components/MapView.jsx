@@ -29,7 +29,12 @@ function SatellitePanel({ data, onClose }) {
                   src={item.preview_url}
                   alt={year + ' raw satellite imagery'}
                 />
-              ) : null}
+              ) : (
+                <div className="satellite-unavailable">
+                  <strong>{year} imagery not downloaded for this coastline</strong>
+                  <span>Run the Landsat AOI download script in the project terminal.</span>
+                </div>
+              )}
             </div>
           );
         })}
