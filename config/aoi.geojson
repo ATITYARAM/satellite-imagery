@@ -4,17 +4,40 @@
     {
       "type": "Feature",
       "properties": {
-        "name": "Chennai-Mahabalipuram Coastal Belt"
+        "name": "Thiruvananthapuram Coastal Erosion Study Area",
+        "places": [
+          "Shanghumugham",
+          "Valiyathura",
+          "Poonthura"
+        ],
+        "state": "Kerala",
+        "country": "India",
+        "note": "Initial AOI bounding the southern Thiruvananthapuram coast; refine against an authoritative shoreline before final measurements."
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [
           [
-            [80.3, 13.1],
-            [80.3, 12.6],
-            [80.1, 12.6],
-            [80.1, 13.1],
-            [80.3, 13.1]
+            [
+              76.88,
+              8.41
+            ],
+            [
+              76.88,
+              8.51
+            ],
+            [
+              76.97,
+              8.51
+            ],
+            [
+              76.97,
+              8.41
+            ],
+            [
+              76.88,
+              8.41
+            ]
           ]
         ]
       }
