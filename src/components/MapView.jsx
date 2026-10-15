@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MapContainer, Polygon, TileLayer } from 'react-leaflet';
 import { SECTIONS } from './Sidebar';
 
-const DEFAULT_CENTER = [12.8, 80.2];
+const DEFAULT_CENTER = [8.46, 76.925];
 
 function SatellitePanel({ data, onClose }) {
   const years = ['2016', '2026'];
@@ -69,6 +69,15 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
     return ring.map(([longitude, latitude]) => [latitude, longitude]);
   }, [aoi]);
 
+  const mapCenter = useMemo(() => {
+    const ring = aoi?.features?.[0]?.geometry?.coordinates?.[0];
+    if (!Array.isArray(ring) || ring.length < 4) return DEFAULT_CENTER;
+    const vertices = ring.slice(0, -1);
+    const longitude = vertices.reduce((sum, point) => sum + point[0], 0) / vertices.length;
+    const latitude = vertices.reduce((sum, point) => sum + point[1], 0) / vertices.length;
+    return [latitude, longitude];
+  }, [aoi]);
+
   return (
     <main className="map-container">
       <div className="map-banner">
@@ -78,7 +87,7 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
 
       {activeSection === 'satellite' && satelliteDataOpen && <SatellitePanel data={satelliteData} onClose={() => window.dispatchEvent(new CustomEvent('close-satellite-data'))} />}
 
-      <MapContainer center={DEFAULT_CENTER} zoom={10} minZoom={8} maxZoom={18} zoomControl style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={mapCenter} zoom={12} minZoom={8} maxZoom={18} zoomControl style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
