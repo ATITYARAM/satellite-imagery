@@ -15,6 +15,16 @@ DOCS_DIR = ROOT / 'docs'
 AOI_PATH = ROOT / 'config' / 'aoi.geojson'
 DATA_ROOT = ROOT / 'data' / 'satellite'
 
+def current_aoi_bounds():
+    if not AOI_PATH.exists():
+        return None
+    with AOI_PATH.open('r', encoding='utf-8') as handle:
+        geojson = json.load(handle)
+    ring = geojson['features'][0]['geometry']['coordinates'][0]
+    xs = [point[0] for point in ring]
+    ys = [point[1] for point in ring]
+    return [round(min(xs), 6), round(min(ys), 6), round(max(xs), 6), round(max(ys), 6)]
+
 app = FastAPI(title='Coastal Erosion Prediction Platform API', version='0.1.0')
 
 @app.get('/health')
@@ -25,7 +35,7 @@ def health():
 def project_info():
     return {
         'project': 'Coastal Erosion Prediction Platform',
-        'study_area': 'Chennai-Mahabalipuram Coastal Belt',
+        'study_area': 'Thiruvananthapuram Coast, Kerala',
         'domains': ['Satellite Imagery', 'Shoreline History', 'Terrain', 'Rainfall / Weather', 'Ocean Conditions'],
         'stage': 'clean baseline',
     }
@@ -45,7 +55,22 @@ def satellite_data():
             continue
         with metadata_path.open('r', encoding='utf-8') as handle:
             metadata = json.load(handle)
-        metadata['available'] = True
+        expected_bounds = current_aoi_bounds()
+        band_files_present = all(
+            (year_dir / f"{name}.tif").exists()
+            for name in ('B2_blue', 'B3_green', 'B4_red', 'B5_nir', 'B6_swir1', 'B7_swir2')
+        )
+        metadata_bounds = metadata.get('aoi_bounds')
+        metadata['available'] = bool(
+            band_files_present
+            and expected_bounds is not None
+            and metadata_bounds == expected_bounds
+        )
+        if not metadata['available']:
+            metadata['unavailable_reason'] = (
+                'Satellite data has not yet been downloaded for the current study area. '
+                'Run: python scripts/download_landsat_aoi.py'
+            )
         metadata['preview_url'] = f'/satellite/rgb/{year}.png'
         metadata['color_preview_url'] = f'/satellite/color/{year}.png'
         metadata['download_urls'] = {
