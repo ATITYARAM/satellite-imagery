@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
-"""Download comparable Landsat AOI data for 2016 and 2026.
+"""Download real Landsat Collection 2 Level-2 imagery clipped to the configured AOI.
 
-Uses the public Microsoft Planetary Computer STAC API without EarthExplorer.
-The STAC collection-items endpoint is used directly to avoid the slow QUERY
-extension path. Pixel values are preserved; no indices, classification, or ML
-are applied.
+Fetches one low-cloud Landsat 8/9 scene for each requested year through the
+public Microsoft Planetary Computer STAC API. The AOI in config/aoi.geojson
+is the source of truth; outputs are clipped and tagged with its bounds so a
+later study-area change cannot silently reuse imagery from another coastline.
 """
-
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 from pathlib import Path
 
 import planetary_computer
-import pystac
 import pystac_client
 import rasterio
 import requests
 from rasterio.mask import mask
 from rasterio.warp import transform_geom
-
 
 ROOT = Path(__file__).resolve().parents[1]
 AOI_PATH = ROOT / "config" / "aoi.geojson"
@@ -35,66 +33,57 @@ BANDS = {
     "B6_swir1": "swir16",
     "B7_swir2": "swir22",
 }
-
-YEAR_CONFIG = {
-    # Landsat 8 is used for 2016.
-    2016: (("landsat-8",), "2016-01-01T00:00:00Z/2016-12-31T23:59:59Z"),
-    # In 2026 both Landsat 8 and Landsat 9 are valid; use whichever current
-    # scene is available over the AOI. Landsat 9 L2 can lag recent acquisitions.
-    2026: (("landsat-9", "landsat-8"), "2026-01-01T00:00:00Z/2026-09-28T23:59:59Z"),
+PLATFORMS = {
+    2016: ("landsat-8",),
+    2026: ("landsat-9", "landsat-8"),
 }
 
 
-def load_aoi_geometry() -> dict:
-    with AOI_PATH.open("r", encoding="utf-8") as f:
-        geojson = json.load(f)
-    return geojson["features"][0]["geometry"]
-
-
-def load_aoi_bbox() -> list[float]:
-    geometry = load_aoi_geometry()
+def load_aoi() -> tuple[dict, list[float]]:
+    with AOI_PATH.open("r", encoding="utf-8") as handle:
+        geojson = json.load(handle)
+    geometry = geojson["features"][0]["geometry"]
     coords = geometry["coordinates"][0]
     xs = [point[0] for point in coords]
     ys = [point[1] for point in coords]
-    return [min(xs), min(ys), max(xs), max(ys)]
+    bounds = [round(min(xs), 6), round(min(ys), 6), round(max(xs), 6), round(max(ys), 6)]
+    return geojson, bounds
 
 
-def select_scene(year: int, max_cloud: float) -> pystac.Item:
-    platforms, date_range = YEAR_CONFIG[year]
-    start, stop = date_range.split("/")
+def select_scene(year: int, max_cloud: float):
+    now = dt.datetime.now(dt.timezone.utc)
+    start = dt.datetime(year, 1, 1, tzinfo=dt.timezone.utc)
+    stop = min(dt.datetime(year, 12, 31, 23, 59, 59, tzinfo=dt.timezone.utc), now)
+    if stop < start:
+        raise RuntimeError(f"No imagery can exist for future year {year} yet.")
 
+    _, bbox = load_aoi()
     catalog = pystac_client.Client.open(
         STAC_URL,
         modifier=planetary_computer.sign_inplace,
     )
-
-    # Use the STAC /search endpoint with bbox + datetime only. This avoids the
-    # server's slow QUERY extension and keeps the temporal filter server-side.
     search = catalog.search(
         collections=["landsat-c2-l2"],
-        bbox=load_aoi_bbox(),
-        datetime=[start, stop],
+        bbox=bbox,
+        datetime=f"{start.isoformat()}/{stop.isoformat()}",
         limit=100,
     )
-
     items = list(search.items())
-
     candidates = [
-        item
-        for item in items
-        if item.properties.get("platform") in platforms
+        item for item in items
+        if item.properties.get("platform") in PLATFORMS[year]
         and item.datetime is not None
         and item.datetime.year == year
         and float(item.properties.get("eo:cloud_cover", 100.0)) < max_cloud
     ]
-
     if not candidates:
         raise RuntimeError(
-            f"No Landsat 8/9 Collection 2 Level-2 scene actually acquired in "
-            f"{year} was returned for the configured AOI with cloud cover "
-            f"< {max_cloud}%."
+            f"No Landsat 8/9 Collection 2 Level-2 scene was found for the configured "
+            f"Thiruvananthapuram AOI in {year} with cloud cover < {max_cloud}%. "
+            "Try increasing --max-cloud."
         )
 
+    # Prefer the clearest image; for similar clarity, choose the newest.
     candidates.sort(
         key=lambda item: (
             float(item.properties.get("eo:cloud_cover", 100.0)),
@@ -105,6 +94,7 @@ def select_scene(year: int, max_cloud: float) -> pystac.Item:
 
 
 def download_year(year: int, max_cloud: float) -> dict:
+    geojson, bounds = load_aoi()
     item = select_scene(year, max_cloud)
     out_dir = DATA_ROOT / str(year)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -113,49 +103,33 @@ def download_year(year: int, max_cloud: float) -> dict:
         "year": year,
         "scene_id": item.id,
         "platform": item.properties.get("platform"),
-        "acquisition_datetime": item.datetime.isoformat()
-        if item.datetime
-        else None,
+        "acquisition_datetime": item.datetime.isoformat() if item.datetime else None,
         "cloud_cover_percent": item.properties.get("eo:cloud_cover"),
         "collection": "landsat-c2-l2",
         "source": "Microsoft Planetary Computer",
         "aoi_file": str(AOI_PATH.relative_to(ROOT)),
+        "aoi_name": geojson["features"][0].get("properties", {}).get("name"),
+        "aoi_bounds": bounds,
         "bands": {},
     }
 
     preview = item.assets.get("rendered_preview") or item.assets.get("thumbnail")
     if preview:
-        response = requests.get(
-            planetary_computer.sign(preview.href),
-            timeout=60,
-        )
+        response = requests.get(planetary_computer.sign(preview.href), timeout=60)
         response.raise_for_status()
         (out_dir / "scene_preview.jpg").write_bytes(response.content)
         metadata["preview"] = "scene_preview.jpg"
 
-    aoi_geometry = load_aoi_geometry()
-
+    geometry = geojson["features"][0]["geometry"]
     for name, asset_key in BANDS.items():
         asset = item.assets.get(asset_key)
         if asset is None:
             raise RuntimeError(f"Scene {item.id} is missing asset '{asset_key}'.")
 
         out_path = out_dir / f"{name}.tif"
-
         with rasterio.open(planetary_computer.sign(asset.href)) as src:
-            aoi_in_raster_crs = transform_geom(
-                "EPSG:4326",
-                src.crs,
-                aoi_geometry,
-                precision=6,
-            )
-
-            clipped, transform = mask(
-                src,
-                [aoi_in_raster_crs],
-                crop=True,
-            )
-
+            aoi_in_raster_crs = transform_geom("EPSG:4326", src.crs, geometry, precision=6)
+            clipped, transform = mask(src, [aoi_in_raster_crs], crop=True)
             profile = src.profile.copy()
             profile.update(
                 driver="GTiff",
@@ -164,7 +138,6 @@ def download_year(year: int, max_cloud: float) -> dict:
                 transform=transform,
                 count=1,
             )
-
             with rasterio.open(out_path, "w", **profile) as dst:
                 dst.write(clipped[0], 1)
 
@@ -179,36 +152,24 @@ def download_year(year: int, max_cloud: float) -> dict:
                 "nodata": src.nodata,
             }
 
-    (out_dir / "metadata.json").write_text(
-        json.dumps(metadata, indent=2),
-        encoding="utf-8",
-    )
+    (out_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return metadata
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--year",
-        type=int,
-        action="append",
-        choices=sorted(YEAR_CONFIG),
-        help="Year to download; repeat for multiple years. Default: 2016 and 2026.",
-    )
-    parser.add_argument(
-        "--max-cloud",
-        type=float,
-        default=35.0,
-        help="Maximum scene cloud cover percentage (default: 35).",
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--year", type=int, action="append", choices=sorted(PLATFORMS),
+                        help="Year to download; repeat to fetch both. Default: 2016 and 2026.")
+    parser.add_argument("--max-cloud", type=float, default=35.0,
+                        help="Maximum scene cloud cover percentage (default: 35).")
     args = parser.parse_args()
 
-    for year in args.year or [2016, 2026]:
+    years = args.year or [2016, 2026]
+    for year in years:
         metadata = download_year(year, args.max_cloud)
         print(
-            f"{year}: {metadata['scene_id']} | "
-            f"{metadata['acquisition_datetime']} | "
-            f"cloud={metadata['cloud_cover_percent']}%"
+            f"{year}: {metadata['scene_id']} | {metadata['acquisition_datetime']} | "
+            f"cloud={metadata['cloud_cover_percent']}% | AOI={metadata['aoi_name']}"
         )
 
 
