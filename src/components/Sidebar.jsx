@@ -16,7 +16,7 @@ export default function Sidebar({ activeSection, onSelect, onSatelliteDoubleClic
     <aside className="sidebar">
       <div className="sidebar-header">
         <h2>Coastal Erosion Prediction Platform</h2>
-        <p>Chennai–Mahabalipuram Coastal Belt</p>
+        <p>Thiruvananthapuram Coast, Kerala</p>
       </div>
       <nav className="section-nav" aria-label="Project sections">
         {SECTIONS.map((section) => {
