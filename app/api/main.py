@@ -35,7 +35,7 @@ def health():
 def project_info():
     return {
         'project': 'Coastal Erosion Prediction Platform',
-        'study_area': 'Thiruvananthapuram Coast, Kerala',
+        'study_area': 'Thiruvananthapuram Coast, Kerala (Shanghumugham–Valiyathura–Poonthura)',
         'domains': ['Satellite Imagery', 'Shoreline History', 'Terrain', 'Rainfall / Weather', 'Ocean Conditions'],
         'stage': 'clean baseline',
     }
