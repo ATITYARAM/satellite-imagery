@@ -51,7 +51,12 @@ function XGBoostSatelliteSplit({ onToggleView, colorView }) {
             src={colorView ? left.color_preview_url : left.preview_url}
             alt={colorView ? '2016 color satellite imagery' : '2016 raw satellite imagery'}
           />
-        ) : null}
+        ) : (
+          <div className="satellite-unavailable">
+            <strong>2016 imagery not loaded</strong>
+            <span>Run <code>python scripts/download_landsat_aoi.py</code> to fetch this coastline.</span>
+          </div>
+        )}
       </section>
       <section className="split-side split-side-right">
         {right?.available ? (
@@ -59,7 +64,12 @@ function XGBoostSatelliteSplit({ onToggleView, colorView }) {
             src={colorView ? right.color_preview_url : right.preview_url}
             alt={colorView ? '2026 color satellite imagery' : '2026 raw satellite imagery'}
           />
-        ) : null}
+        ) : (
+          <div className="satellite-unavailable">
+            <strong>2026 imagery not loaded</strong>
+            <span>Run <code>python scripts/download_landsat_aoi.py</code> to fetch this coastline.</span>
+          </div>
+        )}
       </section>
     </main>
   );
