@@ -1,42 +1,83 @@
 # Coastal Erosion Prediction Platform
 
-## Original Problem Statement
+## Requirements
 
-Create a satellite-image analytics system to monitor and predict coastal erosion patterns. The solution should integrate spatial datasets such as maps, satellite imagery, terrain, rainfall, infrastructure, and field records to generate meaningful decision layers. The outcome may include risk maps, priority zones, dashboards, and validation using historical records or expert-labelled ground truth.
+- Python 3.10+
+- Node.js 22+
+- npm
+- Internet access for Landsat downloads and map tiles
 
-## Current study area
+## Setup
 
-The current area of interest is the southern Thiruvananthapuram coast, Kerala, covering the Shanghumugham–Valiyathura–Poonthura stretch. Its initial bounding box is defined in `config/aoi.geojson`; refine this box against an authoritative shoreline before using measurements for scientific claims.
+```bash
+git clone -b anti https://github.com/ATITYARAM/satellite-imagery.git
+cd satellite-imagery
 
-## Current architecture
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 
-The complete project will use five independent domains:
-1. Satellite Imagery
-2. Shoreline History
-3. Terrain
-4. Rainfall / Weather
-5. Ocean Conditions
+npm ci
+```
 
-Each domain will be implemented independently and will later provide a standardized output for the combined ML stage.
+## Configure the study area
 
-## Satellite data: fetch the new AOI
+Edit `config/aoi.geojson`.
 
-The committed imagery was downloaded for the previous Chennai study area and must not be reused for Thiruvananthapuram. From the repository root, activate the project's Python environment, then run:
+Current AOI: Thiruvananthapuram coast, Kerala — Shanghumugham, Valiyathura and Poonthura.
+
+## Download satellite data
+
+From the repository root, with the Python virtual environment active:
 
 ```bash
 python scripts/download_landsat_aoi.py
 ```
 
-This searches Microsoft Planetary Computer for low-cloud Landsat Collection 2 Level-2 scenes acquired in 2016 and 2026, clips all six spectral bands to the current AOI, and writes scene metadata including the AOI bounds. It will report the scene IDs and acquisition dates. If no scene meets the cloud threshold, try `--max-cloud 50`.
+The script downloads Landsat Collection 2 Level-2 bands for 2016 and 2026 and writes the data and scene metadata to `data/satellite/<year>/`.
 
-Until this script succeeds for both years, the UI intentionally marks the satellite imagery as unavailable and XGBoost refuses to use the old AOI data.
+If no scene meets the default cloud threshold:
 
-## Local run
+```bash
+python scripts/download_landsat_aoi.py --max-cloud 50
+```
 
-1. Install the dependencies from `requirements.txt` in the Python environment.
-2. Download the current AOI imagery using the command above.
-3. Build the frontend with `npm run build`.
-4. Start FastAPI with `uvicorn app.api.main:app --reload`.
-5. Open `http://127.0.0.1:8000/dashboard/`.
+## Build and run
 
-GitHub is used for source/version control. No GitHub Pages deployment is required.
+```bash
+npm run build
+uvicorn app.api.main:app --host 127.0.0.1 --port 8000
+```
+
+Open: http://127.0.0.1:8000/dashboard/
+
+Keep the terminal running while using the application. To stop the server, press `Ctrl+C`.
+
+## Run checks
+
+```bash
+npm run lint
+npm run build
+python -m compileall app scripts
+```
+
+## Key paths
+
+- `config/aoi.geojson` — area of interest
+- `scripts/download_landsat_aoi.py` — Landsat download and AOI clipping
+- `data/satellite/2016/`, `data/satellite/2026/` — downloaded imagery and metadata
+- `app/domains/xgboost_pipeline.py` — paired-image XGBoost prototype
+- `app/api/main.py` — API and dashboard server
+- `src/` — React frontend
+
+## Result API
+
+- `GET /health`
+- `GET /aoi`
+- `GET /satellite/data`
+- `GET /xgboost/result`
+- `GET /xgboost/result?force=true`
+- `GET /xgboost/result.png`
+
+The current XGBoost output uses a paired-image change proxy from the 2016 and 2026 satellite observations. It is not a ground-truth-validated erosion prediction model.
