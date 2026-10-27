@@ -1,0 +1,8 @@
+# Local resumable catalogue database; generated CSV/JSONL outputs are separate and auditable
+.work/
+# Bulk raster imagery is stored with a separately approved Git LFS or external-storage plan.
+imagery/**/*.tif
+imagery/**/*.tiff
+imagery/**/*.jp2
+imagery/**/*.vrt
+imagery/**/*.zip
