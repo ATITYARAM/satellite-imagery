@@ -1,0 +1,35 @@
+{
+  "domain": "satellite_imagery",
+  "study_area": {
+    "name": "Cuddalore Coast, Tamil Nadu, India",
+    "center_lat": 11.748,
+    "center_lon": 79.7714,
+    "bbox": [79.75, 11.72, 79.80, 11.78]
+  },
+  "data_source": {
+    "name": "Landsat Collection 2 Level-2",
+    "provider": "USGS / Microsoft Planetary Computer",
+    "stac_endpoint": "https://planetarycomputer.microsoft.com/api/stac/v1",
+    "collection": "landsat-c2-l2",
+    "sensors": ["landsat-8-c2-l2", "landsat-9-c2-l2"],
+    "bands_used": {
+      "B2": "Blue (0.45-0.51 µm) — aerosol correction",
+      "B3": "Green (0.53-0.59 µm) — MNDWI numerator",
+      "B4": "Red (0.64-0.67 µm) — NDVI denominator",
+      "B5": "NIR (0.85-0.88 µm) — NDVI numerator / NDWI denominator",
+      "B6": "SWIR1 (1.57-1.65 µm) — MNDWI denominator / NDWI2",
+      "B10": "TIRS1 (10.6-11.2 µm) — land surface temperature"
+    },
+    "cloud_cover_max_pct": 20,
+    "scale_factor": 0.0000275,
+    "offset": -0.2,
+    "crs": "EPSG:32644"
+  },
+  "indices_computed": ["NDVI", "MNDWI", "NDWI", "NDSI"],
+  "acquisition_status": "pipeline defined; real imagery download requires Planetary Computer token",
+  "limitations": [
+    "Planetary Computer STAC access may require authentication token",
+    "Cloud masking uses QA_PIXEL band bits 3 and 4",
+    "L2 surface reflectance scale factor applied: SR = DN × 0.0000275 − 0.2"
+  ]
+}

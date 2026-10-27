@@ -1,0 +1,12 @@
+{
+  "data_mode": "synthetic",
+  "_comment": "Options: 'real' | 'synthetic' | 'mixed'. Change to 'real' when real data pipelines are implemented.",
+  "seed": 42,
+  "domains": {
+    "satellite_imagery":  { "mode": "pipeline-ready" },
+    "shoreline_history":  { "mode": "synthetic" },
+    "terrain":            { "mode": "synthetic" },
+    "rainfall_weather":   { "mode": "synthetic" },
+    "ocean_conditions":   { "mode": "synthetic" }
+  }
+}

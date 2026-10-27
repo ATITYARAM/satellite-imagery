@@ -1,0 +1,45 @@
+{
+  "domain": "rainfall_weather",
+  "study_area": {
+    "name": "Cuddalore Coast, Tamil Nadu, India",
+    "center_lat": 11.748,
+    "center_lon": 79.7714
+  },
+  "intended_real_sources": {
+    "rainfall": {
+      "name": "GPM IMERG Final Run",
+      "provider": "NASA",
+      "url": "https://gpm.nasa.gov/data/imerg",
+      "resolution_spatial_km": 10,
+      "resolution_temporal": "30min",
+      "units": "mm/hr"
+    },
+    "weather": {
+      "name": "ERA5 Reanalysis",
+      "provider": "ECMWF / Copernicus CDS",
+      "url": "https://cds.climate.copernicus.eu/",
+      "resolution_spatial_km": 31,
+      "resolution_temporal": "hourly",
+      "variables": ["u10", "v10", "tp", "msl", "t2m"]
+    }
+  },
+  "features": [
+    "rainfall_mm_per_day",
+    "rainfall_7d_accum_mm",
+    "rainfall_30d_accum_mm",
+    "max_intensity_mm_per_hr",
+    "wind_speed_kmh",
+    "wind_dir_deg",
+    "pressure_hpa",
+    "temp_c"
+  ],
+  "data_sources": {
+    "real": "GPM IMERG + ERA5 — requires API keys and download pipeline",
+    "synthetic": "domains/rainfall_weather/data/synthetic/"
+  },
+  "limitations": [
+    "Real GPM/ERA5 download requires NASA Earthdata and Copernicus CDS credentials",
+    "Synthetic data uses seasonal modulation and Poisson-distributed rain events",
+    "Forecast data not available in this release"
+  ]
+}

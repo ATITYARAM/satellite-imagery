@@ -1,0 +1,37 @@
+{
+  "domain": "ocean_conditions",
+  "study_area": {
+    "name": "Bay of Bengal — Cuddalore nearshore",
+    "lat": 11.748,
+    "lon": 79.7714
+  },
+  "intended_real_sources": {
+    "waves": {
+      "name": "INCOIS Wave Watch III / ERA5 Waves",
+      "provider": "INCOIS / ECMWF",
+      "url": "https://incois.gov.in/",
+      "variables": ["Hs", "Tp", "Dir"],
+      "units": { "Hs": "m", "Tp": "s", "Dir": "deg_from_N" }
+    },
+    "tides": {
+      "name": "TPXO Tidal Prediction / INCOIS tide gauge",
+      "provider": "OSU / INCOIS",
+      "url": "https://www.tpxo.net/",
+      "variables": ["tide_level_m"],
+      "datum": "LAT (Lowest Astronomical Tide)"
+    }
+  },
+  "features": [
+    "Hs_m", "Tp_s", "wave_dir_deg", "wave_power_kw_per_m",
+    "tide_level_m", "tidal_range_m", "storm_surge_flag"
+  ],
+  "data_sources": {
+    "real": "INCOIS / TPXO — requires API access",
+    "synthetic": "domains/ocean_conditions/data/synthetic/"
+  },
+  "limitations": [
+    "Real wave/tide data requires INCOIS API or ERA5 download pipeline",
+    "Synthetic tides use a simplified M2+S2 tidal harmonic model",
+    "No nearshore current data in this release"
+  ]
+}
