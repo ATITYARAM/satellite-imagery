@@ -182,10 +182,12 @@ function ResultView() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [imageError, setImageError] = useState(false);
 
   const runModel = async (force = false) => {
     setLoading(true);
     setError('');
+    setImageError(false);
     try {
       const response = force
         ? await fetch('/xgboost/run?force=true', { method: 'POST' })
@@ -249,15 +251,14 @@ function ResultView() {
                 <span className="result-model-pill">XGBClassifier</span>
               </div>
               <div className="result-image-wrap">
-                <img
-                  src={result?.image_url ? result.image_url + '?v=' + result.run_id : ''}
-                  alt="XGBoost coastal change score generated from all selected 2015–2025 satellite dates"
-                />
-                <div className="result-legend">
-                  <span>Low</span>
-                  <div className="result-gradient" />
-                  <span>High</span>
-                </div>
+                {imageError ? (
+                  <div className="result-map-error" role="alert"><AlertTriangle size={22} /><strong>The generated map could not load.</strong><span>Run XGBoost again to regenerate the PNG, then retry.</span></div>
+                ) : <img
+                    src={result?.image_url ? result.image_url + '?v=' + result.run_id : ''}
+                    alt="Geographically annotated XGBoost spectral-change proxy map for the Thiruvananthapuram study area"
+                    onError={() => setImageError(true)}
+                  />}
+                <div className="result-map-key">Map key: dashed line = study-area boundary; blank pale areas = masked/no data. No coastline is inferred.</div>
               </div>
             </article>
 

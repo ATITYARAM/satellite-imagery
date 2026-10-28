@@ -307,7 +307,7 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
     prob_map = probabilities.reshape(reference["shape"])
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    _write_result_image(latest_scene, prob_map, RESULT_IMAGE)
+    _write_result_image(prob_map, reference, RESULT_IMAGE)
     importance = np.asarray(model.feature_importances_, dtype=float)
     top_idx = np.argsort(importance)[::-1][:12]
     top_features = [{"name": feature_names[int(i)], "importance": float(importance[int(i)])}
@@ -344,35 +344,79 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
     return result
 
 
-def _write_result_image(
-    new: dict[str, np.ndarray],
-    probability: np.ndarray,
-    output_path: Path,
-) -> None:
+def _write_result_image(probability: np.ndarray, reference: dict[str, Any], output_path: Path) -> None:
+    """Render an annotated geospatial proxy map from the actual analysis grid.
+
+    The AOI is the only boundary drawn here. No shoreline is inferred: this
+    project has no authoritative shoreline geometry in the result pipeline.
+    """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.patches import Patch
+    from pyproj import Transformer
+    from rasterio.transform import array_bounds
+    from rasterio.warp import transform_geom
 
-    red = new["red"]
-    green = new["green"]
-    blue = new["blue"]
-    rgb_bands = []
-    for band in (red, green, blue):
-        finite = np.isfinite(band)
-        if not np.any(finite):
-            rgb_bands.append(np.zeros_like(band, dtype="float32"))
-            continue
-        low, high = np.nanpercentile(band, [2, 98])
-        rgb_bands.append(np.clip((band - low) / max(high - low, 1e-6), 0.0, 1.0))
-
-    base = np.stack(rgb_bands, axis=-1)
+    height, width = probability.shape
+    west, south, east, north = array_bounds(height, width, reference["transform"])
     finite = np.isfinite(probability)
-    safe_probability = np.where(finite, probability, 0.0)
-    cmap = plt.get_cmap("RdYlGn_r")
-    overlay = cmap(safe_probability)[..., :3].astype("float32")
+    if not finite.any():
+        raise RuntimeError("Cannot render result map: proxy raster has no finite pixels")
 
-    alpha = np.where(finite, 0.18 + 0.72 * safe_probability, 0.0).astype("float32")
-    composite = base * (1.0 - alpha[..., None]) + overlay * alpha[..., None]
-    composite[~finite] = 0.0
+    # Fixed score classes make maps comparable between runs; masked nodata is
+    # transparent, rather than being painted as an apparent low-score zone.
+    bounds = [0.0, 0.25, 0.50, 0.75, 1.000001]
+    colors = ["#2c7bb6", "#00a6ca", "#fdae61", "#d7191c"]
+    cmap = ListedColormap(colors, name="change_proxy_classes")
+    cmap.set_bad((0, 0, 0, 0))
+    proxy = np.ma.masked_invalid(np.clip(probability, 0.0, 1.0))
+    norm = BoundaryNorm(bounds, cmap.N)
 
-    plt.imsave(output_path, composite, format="png")
+    aoi = json.loads((ROOT / "config" / "aoi.geojson").read_text(encoding="utf-8"))
+    geometry = aoi["features"][0]["geometry"]
+    projected = transform_geom("EPSG:4326", reference["crs"], geometry, precision=3)
+    ring = np.asarray(projected["coordinates"][0])
+
+    fig, ax = plt.subplots(figsize=(10.8, 8.2), dpi=160, facecolor="white")
+    ax.set_facecolor("#eef3f5")
+    image = ax.imshow(proxy, extent=(west, east, south, north), origin="upper", cmap=cmap, norm=norm, interpolation="nearest")
+    ax.plot(ring[:, 0], ring[:, 1], color="#172554", linewidth=1.5, linestyle="--", label="Study-area boundary (AOI)")
+    ax.text(west + (east - west) * .018, north - (north - south) * .025,
+            "Thiruvananthapuram Coast, Kerala\nUnvalidated spectral-change proxy",
+            ha="left", va="top", fontsize=10, fontweight="bold", color="#0f172a",
+            bbox={"boxstyle": "round,pad=.35", "facecolor": "white", "edgecolor": "#94a3b8", "alpha": .94})
+
+    # Geographic labels are transformed from actual UTM tick positions.
+    transformer = Transformer.from_crs(reference["crs"], "EPSG:4326", always_xy=True)
+    xticks = np.linspace(west, east, 5)
+    yticks = np.linspace(south, north, 5)
+    ax.set_xticks(xticks); ax.set_yticks(yticks)
+    ax.set_xticklabels([f"{transformer.transform(x, south)[0]:.3f}°E" for x in xticks], fontsize=8)
+    ax.set_yticklabels([f"{transformer.transform(west, y)[1]:.3f}°N" for y in yticks], fontsize=8)
+    ax.set_xlabel("Longitude (WGS 84)", fontsize=9)
+    ax.set_ylabel("Latitude (WGS 84)", fontsize=9)
+    ax.grid(True, color="#475569", alpha=.22, linewidth=.55)
+    ax.set_title("XGBoost spectral-change proxy zones (not measured erosion)", fontsize=13, fontweight="bold", pad=12)
+
+    # A north arrow and metric scale bar use the real projected grid units.
+    dx, dy = east - west, north - south
+    arrow_x, arrow_y = east - dx * .055, south + dy * .12
+    ax.annotate("N", xy=(arrow_x, arrow_y + dy * .13), xytext=(arrow_x, arrow_y), ha="center", va="center", fontsize=11, fontweight="bold",
+                arrowprops={"arrowstyle": "-|>", "color": "#111827", "lw": 1.5})
+    scale_m = 2000 if dx >= 7000 else 1000
+    sx, sy = west + dx * .055, south + dy * .075
+    ax.plot([sx, sx + scale_m], [sy, sy], color="#111827", linewidth=4, solid_capstyle="butt")
+    ax.plot([sx, sx], [sy - dy*.012, sy + dy*.012], color="#111827", linewidth=1)
+    ax.plot([sx + scale_m, sx + scale_m], [sy - dy*.012, sy + dy*.012], color="#111827", linewidth=1)
+    ax.text(sx + scale_m / 2, sy + dy * .025, f"{scale_m / 1000:g} km", ha="center", va="bottom", fontsize=8, fontweight="bold")
+
+    handles = [Patch(facecolor=color, edgecolor="none", label=label) for color, label in zip(colors, ["Low (0.00–0.25)", "Moderate (0.25–0.50)", "High (0.50–0.75)", "Very high (0.75–1.00)"])]
+    handles += [Patch(facecolor="#eef3f5", edgecolor="#94a3b8", label="No data / masked"), plt.Line2D([], [], color="#172554", linestyle="--", label="Study-area boundary")]
+    legend = ax.legend(handles=handles, title="Change-proxy score", loc="lower right", fontsize=8, title_fontsize=9, frameon=True, framealpha=.96)
+    legend.get_frame().set_edgecolor("#94a3b8")
+    fig.text(.5, .012, "Zones show a model-derived spectral-change proxy. They are not validated erosion probabilities or shoreline measurements.", ha="center", fontsize=8, color="#334155")
+    fig.tight_layout(rect=(0, .035, 1, 1))
+    fig.savefig(output_path, format="png", transparent=False, facecolor="white")
+    plt.close(fig)
