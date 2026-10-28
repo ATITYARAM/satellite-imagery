@@ -1,29 +1,40 @@
 {
   "domain": "terrain",
   "study_area": {
-    "name": "Cuddalore Coast, Tamil Nadu, India",
-    "center_lat": 11.748,
-    "center_lon": 79.7714,
-    "bbox": [79.75, 11.72, 79.80, 11.78]
+    "name": "Shanghumugham–Valiyathura–Poonthura Coast, Thiruvananthapuram, Kerala, India",
+    "center_lat": 8.462,
+    "center_lon": 76.926,
+    "bbox": [
+      76.905,
+      8.44,
+      76.945,
+      8.485
+    ]
   },
   "intended_real_source": {
-    "name": "ALOS World 3D - 30m (AW3D30)",
-    "provider": "JAXA",
-    "url": "https://www.eorc.jaxa.jp/ALOS/en/aw3d30/",
+    "name": "Copernicus DEM GLO-30",
+    "provider": "Copernicus/ESA",
+    "url": "https://dataspace.copernicus.eu/",
     "resolution_m": 30,
-    "vertical_datum": "EGM96",
     "horizontal_crs": "EPSG:4326",
-    "bands": ["DSM"]
+    "bands": [
+      "elevation"
+    ]
   },
-  "derived_features": ["elevation_m", "slope_deg", "aspect_deg", "coastal_proximity_m", "roughness"],
-  "missing_data_value": -9999,
+  "derived_features": [
+    "elevation_m",
+    "slope_deg",
+    "aspect_deg",
+    "coastal_proximity_m",
+    "roughness_m"
+  ],
   "data_sources": {
-    "real": "ALOS AW3D30 — requires download pipeline",
-    "synthetic": "domains/terrain/data/synthetic/"
+    "real": "Copernicus DEM GLO-30; download and clip required",
+    "synthetic": "domains/terrain/data/synthetic/terrain_grid_2015_2025.json"
   },
   "limitations": [
-    "Real DEM download not yet implemented",
-    "Synthetic terrain uses a procedural noise surface — not a real DEM",
-    "30m resolution insufficient for sub-metre coastal change detection"
+    "Synthetic grid is illustrative, not a measured DEM",
+    "30 m grid is not suitable for sub-metre shoreline-change detection",
+    "Use a clipped, quality-checked real DEM for scientific analysis"
   ]
 }

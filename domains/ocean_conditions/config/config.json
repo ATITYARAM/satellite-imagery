@@ -1,37 +1,47 @@
 {
   "domain": "ocean_conditions",
   "study_area": {
-    "name": "Bay of Bengal — Cuddalore nearshore",
-    "lat": 11.748,
-    "lon": 79.7714
+    "name": "Arabian Sea nearshore — Thiruvananthapuram, Kerala",
+    "lat": 8.462,
+    "lon": 76.926
   },
   "intended_real_sources": {
     "waves": {
       "name": "INCOIS Wave Watch III / ERA5 Waves",
       "provider": "INCOIS / ECMWF",
       "url": "https://incois.gov.in/",
-      "variables": ["Hs", "Tp", "Dir"],
-      "units": { "Hs": "m", "Tp": "s", "Dir": "deg_from_N" }
+      "variables": [
+        "Hs",
+        "Tp",
+        "Dir"
+      ]
     },
     "tides": {
       "name": "TPXO Tidal Prediction / INCOIS tide gauge",
       "provider": "OSU / INCOIS",
       "url": "https://www.tpxo.net/",
-      "variables": ["tide_level_m"],
-      "datum": "LAT (Lowest Astronomical Tide)"
+      "variables": [
+        "tide_level_m"
+      ]
     }
   },
   "features": [
-    "Hs_m", "Tp_s", "wave_dir_deg", "wave_power_kw_per_m",
-    "tide_level_m", "tidal_range_m", "storm_surge_flag"
+    "Hs_mean_m",
+    "Hs_p95_m",
+    "Tp_mean_s",
+    "wave_dir_deg",
+    "wave_power_kw_per_m",
+    "tide_mean_m",
+    "tidal_range_m",
+    "storm_days_estimate"
   ],
   "data_sources": {
-    "real": "INCOIS / TPXO — requires API access",
-    "synthetic": "domains/ocean_conditions/data/synthetic/"
+    "real": "INCOIS / ERA5 / TPXO; retrieval and tide-datum harmonization required",
+    "synthetic": "domains/ocean_conditions/data/synthetic/ocean_conditions_monthly_2015_2025.json"
   },
   "limitations": [
-    "Real wave/tide data requires INCOIS API or ERA5 download pipeline",
-    "Synthetic tides use a simplified M2+S2 tidal harmonic model",
-    "No nearshore current data in this release"
+    "Monthly values are synthetic summaries, not official observations",
+    "Tide metrics use an illustrative synthetic datum",
+    "Wave power is a deepwater approximation and excludes nearshore bathymetric transformation"
   ]
 }

@@ -1,24 +1,30 @@
 {
   "domain": "shoreline_history",
   "study_area": {
-    "name": "Cuddalore Coast, Tamil Nadu, India",
-    "center_lat": 11.748,
-    "center_lon": 79.7714,
-    "bbox": [79.75, 11.72, 79.80, 11.78]
+    "name": "Shanghumugham–Valiyathura–Poonthura Coast, Thiruvananthapuram, Kerala, India",
+    "center_lat": 8.462,
+    "center_lon": 76.926,
+    "bbox": [
+      76.905,
+      8.44,
+      76.945,
+      8.485
+    ]
   },
-  "crs": "EPSG:32644",
-  "shoreline_definition": "MNDWI=0 contour from Landsat SR green/SWIR1 bands",
-  "extraction_method": "Modified Normalized Difference Water Index (MNDWI) threshold",
-  "date_range": { "start": "1990-01-01", "end": "2024-12-31" },
+  "crs": "EPSG:32643",
+  "shoreline_definition": "Synthetic cross-shore displacement from a 2015 baseline",
+  "date_range": {
+    "start": "2015-01-01",
+    "end": "2025-12-31"
+  },
   "measurement_units": "metres",
-  "uncertainty_estimate_m": 15,
   "data_sources": {
-    "real": "Landsat Collection 2 Level-2 (Planetary Computer STAC) — requires acquisition pipeline",
-    "synthetic": "domains/shoreline_history/data/synthetic/"
+    "real": "CoastSat/GEE workflow; see data/shoreline_history/thiruvananthapuram/README.md",
+    "synthetic": "domains/shoreline_history/data/synthetic/shoreline_observations_2015_2025.json"
   },
   "limitations": [
-    "Real shoreline extraction requires Landsat download pipeline (not yet implemented)",
-    "Synthetic data uses a parameterised random-walk model for testing only",
-    "Cloud/shadow masking not applied to synthetic scenarios"
+    "Synthetic displacements are not measured shoreline positions",
+    "Illustrative rates and uncertainty are not calibrated to field data",
+    "Tide effects and detection uncertainty must be assessed for real data"
   ]
 }
