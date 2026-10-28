@@ -15,6 +15,7 @@ DIST_DIR = ROOT / 'dist'
 DOCS_DIR = ROOT / 'docs'
 AOI_PATH = ROOT / 'config' / 'aoi.geojson'
 DATA_ROOT = ROOT / 'data' / 'satellite'
+COMPARISON_ROOT = ROOT / 'data' / 'satellite_comparison'
 ARCHIVE_ROOT = ROOT / 'data_external' / 'thiruvananthapuram_2015_2025'
 ARCHIVE_CATALOG = ROOT / 'data' / 'satellite' / 'thiruvananthapuram_2015_2025' / 'catalog' / 'selected_dates.csv'
 
@@ -47,73 +48,98 @@ def project_info():
 def domains():
     return ['satellite', 'history', 'terrain', 'weather', 'ocean', 'prediction', 'result']
 
+def _download_comparison_scene(year: int) -> Path:
+    """Fetch the selected comparison scene directly from Microsoft Planetary Computer into a separate folder."""
+    import planetary_computer
+    import pystac_client
+    import rasterio
+    from rasterio.mask import mask
+    from rasterio.warp import transform_geom
+
+    selected_scenes = {
+        2015: ("landsat-c2-l2", "LC08_L2SP_144054_20150419_02_T1", "2015-04-19"),
+        2025: ("landsat-c2-l2", "LC09_L2SP_143054_20250906_02_T1", "2025-09-06"),
+    }
+    collection, item_id, acquisition_date = selected_scenes[year]
+    output_dir = COMPARISON_ROOT / str(year)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    band_paths = [output_dir / f"{name}.tif" for name in ("red", "green", "blue")]
+    if all(path.is_file() and path.stat().st_size > 0 for path in band_paths):
+        return output_dir
+
+    if not AOI_PATH.is_file():
+        raise HTTPException(status_code=500, detail="Study-area file config/aoi.geojson is missing.")
+    with AOI_PATH.open("r", encoding="utf-8") as handle:
+        aoi = json.load(handle)
+    geometry = aoi["features"][0]["geometry"]
+
+    catalog = pystac_client.Client.open("https://planetarycomputer.microsoft.com/api/stac/v1/")
+    search = catalog.search(collections=[collection], ids=[item_id], max_items=1)
+    items = list(search.items())
+    if not items:
+        raise HTTPException(status_code=502, detail=f"Microsoft Planetary Computer did not return scene {item_id}.")
+    item = planetary_computer.sign(items[0])
+
+    for band_name in ("red", "green", "blue"):
+        asset = item.assets.get(band_name)
+        if asset is None:
+            raise HTTPException(status_code=502, detail=f"Scene {item_id} has no {band_name} asset.")
+        out_path = output_dir / f"{band_name}.tif"
+        with rasterio.open(asset.href) as source:
+            geometry_in_crs = transform_geom("EPSG:4326", source.crs, geometry, precision=6)
+            clipped, transform = mask(source, [geometry_in_crs], crop=True)
+            profile = source.profile.copy()
+            profile.update(driver="GTiff", height=clipped.shape[1], width=clipped.shape[2],
+                           transform=transform, count=1)
+            with rasterio.open(out_path, "w", **profile) as target:
+                target.write(clipped[0], 1)
+
+    metadata = {
+        "source": "Microsoft Planetary Computer",
+        "collection": collection,
+        "item_id": item_id,
+        "acquisition_date": acquisition_date,
+        "year": year,
+        "study_area": "config/aoi.geojson",
+        "bands": [path.name for path in band_paths],
+    }
+    (output_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    return output_dir
+
+
 @app.get('/satellite/archive-preview/{year}.png')
 def satellite_archive_preview(year: int):
-    """Render the first selected 2015 scene or last selected 2025 scene from the 55-date archive."""
+    """Show first selected 2015 and last selected 2025 scenes, downloaded separately from Microsoft."""
     if year not in (2015, 2025):
-        raise HTTPException(status_code=404, detail='Only the 2015 and 2025 archive endpoints are available')
+        raise HTTPException(status_code=404, detail="Only 2015 and 2025 comparison images are available.")
 
-    if not ARCHIVE_CATALOG.is_file():
-        raise HTTPException(status_code=404, detail='The 2015–2025 selected-date catalogue is missing')
-
-    with ARCHIVE_CATALOG.open('r', encoding='utf-8', newline='') as handle:
-        rows = [row for row in csv.DictReader(handle) if int(row.get('year', 0)) == year]
-
-    if not rows:
-        raise HTTPException(status_code=404, detail=f'No selected acquisition dates for {year}')
-
-    rows.sort(key=lambda row: row.get('acquisition_date_utc', ''))
-    selected = rows[0] if year == 2015 else rows[-1]
-    date = selected['acquisition_date_utc']
-    collection = selected['collection_id']
-    item_id = selected['item_id']
-    year_root = ARCHIVE_ROOT / str(year)
-    scene_dir = year_root / date / collection / item_id
-
-    # The download manifest may have produced a slightly different directory layout.
-    # Search recursively by the exact scene ID before reporting the scene missing.
-    if not scene_dir.is_dir():
-        matches = list(year_root.rglob(item_id)) if year_root.is_dir() else []
-        matches = [path for path in matches if path.is_dir()]
-        if matches:
-            scene_dir = matches[0]
-
-    band_paths = [scene_dir / name for name in ('red.tif', 'green.tif', 'blue.tif')]
-    if not all(path.is_file() for path in band_paths):
-        missing = [path.name for path in band_paths if not path.is_file()]
-        raise HTTPException(
-            status_code=404,
-            detail=f'Archive scene {item_id} ({date}) is missing RGB bands {missing}. Expected folder: {scene_dir}',
-        )
-
+    year_dir = _download_comparison_scene(year)
     import matplotlib
-    matplotlib.use('Agg')
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     import rasterio
 
     bands = []
-    for path in band_paths:
-        with rasterio.open(path) as source:
-            values = source.read(1).astype('float32')
+    for band_name in ("red", "green", "blue"):
+        with rasterio.open(year_dir / f"{band_name}.tif") as source:
+            values = source.read(1).astype("float32")
             nodata = source.nodata
         valid = np.isfinite(values)
         if nodata is not None:
             valid &= values != nodata
         valid &= values > 0
         if not np.any(valid):
-            raise HTTPException(status_code=422, detail=f'No valid pixels in {path.name}')
-        scaled = np.zeros_like(values, dtype='float32')
+            raise HTTPException(status_code=422, detail=f"No valid pixels in {year} {band_name} band.")
         low, high = np.percentile(values[valid], (2, 98))
+        scaled = np.zeros_like(values, dtype="float32")
         scaled[valid] = np.clip((values[valid] - low) / max(high - low, 1e-6), 0.0, 1.0)
         bands.append(scaled)
 
     rgb = np.stack(bands, axis=-1)
-    output_dir = ROOT / 'data' / 'satellite' / 'archive_previews'
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f'{year}_{date}_rgb.png'
-    plt.imsave(output_path, rgb, format='png')
-    return FileResponse(output_path, media_type='image/png', headers={'Cache-Control': 'no-store'})
+    output_path = year_dir / f"{year}_rgb_preview.png"
+    plt.imsave(output_path, rgb, format="png")
+    return FileResponse(output_path, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @app.get('/satellite/data')
