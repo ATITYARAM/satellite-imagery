@@ -183,6 +183,11 @@ function ResultView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [imageError, setImageError] = useState(false);
+  const [forecastYear, setForecastYear] = useState(2026);
+  const [forecast, setForecast] = useState(null);
+  const [forecastLoading, setForecastLoading] = useState(true);
+  const [forecastError, setForecastError] = useState('');
+  const [forecastImageError, setForecastImageError] = useState(false);
 
   const runModel = async (force = false) => {
     setLoading(true);
@@ -208,6 +213,26 @@ function ResultView() {
   };
 
   useEffect(() => { runModel(); }, []);
+
+  const loadForecast = async (year, force = false) => {
+    setForecastLoading(true); setForecastError(''); setForecastImageError(false);
+    try {
+      const response = force
+        ? await fetch(`/forecast/${year}/run`, { method: 'POST' })
+        : await fetch(`/forecast/${year}`);
+      const body = await response.text();
+      if (!response.ok) {
+        let message = body;
+        try { message = JSON.parse(body).detail || body; } catch {}
+        throw new Error(message || 'Forecast unavailable');
+      }
+      setForecast(JSON.parse(body));
+    } catch (err) {
+      setForecast(null); setForecastError(err instanceof Error ? err.message : 'Forecast unavailable.');
+    } finally { setForecastLoading(false); }
+  };
+
+  useEffect(() => { loadForecast(forecastYear); }, [forecastYear]);
 
   const domains = [
     ['Shoreline history', result?.domain_coverage?.shoreline_history],
@@ -251,6 +276,29 @@ function ResultView() {
         </section>
       ) : (
         <>
+          <section className="forecast-section" aria-label="Shoreline forecast">
+            <header className="forecast-header">
+              <div><span className="result-eyebrow">SHORELINE FORECAST</span><h2>{forecastYear} forecast</h2><p>Forecast origin: end of 2025. Negative displacement denotes retreat.</p></div>
+              <div className="forecast-toggle" aria-label="Forecast year">
+                {[2026, 2027].map((year) => <button key={year} type="button" className={forecastYear === year ? 'active' : ''} onClick={() => setForecastYear(year)} disabled={forecastLoading}>{year} Forecast</button>)}
+              </div>
+            </header>
+            {forecastLoading ? <div className="forecast-state"><RefreshCw size={20} className="spin" /> Preparing {forecastYear} forecast artifact…</div>
+              : forecastError ? <div className="forecast-state error"><AlertTriangle size={20} /> {forecastError}<button type="button" onClick={() => loadForecast(forecastYear, true)}>Retry</button></div>
+              : <div className="forecast-grid">
+                  <article className="result-output-card forecast-map-card">
+                    <div className="forecast-warning"><AlertTriangle size={15} /> Synthetic development preview — not a scientific coastal forecast.</div>
+                    {forecastImageError ? <div className="result-map-error"><AlertTriangle size={22}/><strong>Forecast map could not load</strong><button type="button" className="result-retry-inline" onClick={() => loadForecast(forecastYear, true)}>Regenerate</button></div>
+                      : <img className="forecast-map-image" src={`${forecast?.image_url}?v=${forecastYear}-${encodeURIComponent(forecast?.input_signature || '')}`} onError={() => setForecastImageError(true)} alt={`${forecastYear} synthetic development shoreline trend preview`} />}
+                  </article>
+                  <aside className="forecast-summary">
+                    <span>MODEL STATUS</span><strong>Real ML forecast unavailable</strong>
+                    <p>{forecast?.model?.xgboost_regression}</p>
+                    <dl><div><dt>Illustrative mean displacement</dt><dd>{Number(forecast?.summary?.mean_displacement_m || 0).toFixed(1)} m</dd></div><div><dt>Illustrative mean rate</dt><dd>{Number(forecast?.summary?.mean_retreat_rate_m_yr || 0).toFixed(2)} m/year</dd></div><div><dt>Fixture transects</dt><dd>{forecast?.summary?.transect_count || 0}</dd></div></dl>
+                    <p className="forecast-note">{forecast?.validation?.reason}</p>
+                  </aside>
+                </div>}
+          </section>
           <section className="result-metric-grid" aria-label="Analysis summary">
             <article className="result-metric">
               <span>Satellite scenes used</span>
@@ -280,7 +328,7 @@ function ResultView() {
                 <div>
                   <span>SPATIAL OUTPUT</span>
                   <strong>Spectral-change proxy map</strong>
-                  <p>Color zones show relative model scores across the study area.</p>
+                  <p>Supporting satellite-analysis layer; not the shoreline forecast above.</p>
                 </div>
                 <span className={isFull ? 'result-status-pill complete' : 'result-status-pill partial'}>
                   {isFull ? 'Full archive' : 'Development run'}

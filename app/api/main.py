@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.domains.xgboost_pipeline import RESULT_IMAGE, run_xgboost
+from app.domains.forecast_pipeline import forecast_image, run_forecast
 
 ROOT = Path(__file__).resolve().parents[2]
 DIST_DIR = ROOT / 'dist'
@@ -35,6 +36,7 @@ def current_aoi_bounds():
 
 app = FastAPI(title='Coastal Erosion Prediction Platform API', version='0.1.0')
 XGBOOST_RUN_LOCK = threading.Lock()
+FORECAST_RUN_LOCK = threading.Lock()
 
 @app.get('/health')
 def health():
@@ -528,6 +530,46 @@ def xgboost_result_image():
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f'XGBoost result image failed: {exc}') from exc
+
+
+def _forecast_response(year: int, force: bool = False):
+    if not FORECAST_RUN_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail='A forecast artifact is already being generated. Please retry shortly.')
+    try:
+        return run_forecast(year, force=force)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f'Forecast generation failed: {exc}') from exc
+    finally:
+        FORECAST_RUN_LOCK.release()
+
+
+@app.get('/forecast/{year}')
+def forecast_result(year: int):
+    return _forecast_response(year)
+
+
+@app.post('/forecast/{year}/run')
+def forecast_run(year: int):
+    return _forecast_response(year, force=True)
+
+
+@app.get('/forecast/{year}/map.png')
+def forecast_map(year: int):
+    if not FORECAST_RUN_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail='Forecast artifact is being generated. Please retry shortly.')
+    try:
+        path = forecast_image(year)
+        return FileResponse(path, media_type='image/png', headers={'Cache-Control': 'no-store'})
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f'Forecast map failed: {exc}') from exc
+    finally:
+        FORECAST_RUN_LOCK.release()
 
 
 @app.get('/aoi')
