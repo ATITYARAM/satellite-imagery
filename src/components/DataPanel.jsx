@@ -110,7 +110,7 @@ export default function DataPanel({ activeSection, data }) {
         <div className="data-panel-body">
           <div className="synthetic-notice">
             <AlertTriangle size={12} />
-            <span>SYNTHETIC DATA — testing only</span>
+            <span>ILLUSTRATIVE SCENARIO DATA — not measured observations</span>
           </div>
           {renderContent()}
         </div>
