@@ -117,7 +117,7 @@ export function useDomainData(activeSection) {
             ocean: recentOcean(oc),
             rainfall: recentRainfall(rw),
             metadata: {
-              note: 'DEMONSTRATION ONLY — model trained on synthetic data with proxy labels. Not a validated scientific prediction.',
+              note: 'Illustrative scenario only — uses proxy labels and is not a validated scientific prediction.',
               synthetic: true,
             },
           };
