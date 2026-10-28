@@ -193,11 +193,12 @@ function ResultView() {
         ? await fetch('/xgboost/run?force=true', { method: 'POST' })
         : await fetch('/xgboost/result');
       if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(detail || 'XGBoost result unavailable');
+        const body = await response.text();
+        let message = body;
+        try { message = JSON.parse(body).detail || body; } catch {}
+        throw new Error(message || 'XGBoost result unavailable');
       }
-      const value = await response.json();
-      setResult(value);
+      setResult(await response.json());
     } catch (err) {
       setResult(null);
       setError(err instanceof Error ? err.message : 'Unable to run XGBoost.');
@@ -206,111 +207,161 @@ function ResultView() {
     }
   };
 
-  useEffect(() => {
-    runModel();
-  }, []);
+  useEffect(() => { runModel(); }, []);
+
+  const domains = [
+    ['Shoreline history', result?.domain_coverage?.shoreline_history],
+    ['Terrain', result?.domain_coverage?.terrain],
+    ['Rainfall / weather', result?.domain_coverage?.rainfall_weather],
+    ['Ocean conditions', result?.domain_coverage?.ocean_conditions],
+  ];
+  const realScenes = result?.scene_count ?? 0;
+  const totalScenes = result?.catalogue_scene_count ?? 55;
+  const isFull = result?.model_mode === 'full_55_scene';
 
   return (
-    <main className="result-page" aria-label="XGBoost result">
-      <header className="result-header">
+    <main className="result-page result-page-clean" aria-label="XGBoost result">
+      <header className="result-header clean-result-header">
         <div>
-          <div className="result-eyebrow"><BarChart3 size={16} /> MODEL OUTPUT</div>
-          <h1>XGBoost Result</h1>
-          <p>Thiruvananthapuram Coast, Kerala · 2015–2025 coastal-change proxy from available selected satellite observations.</p>
+          <div className="result-eyebrow"><BarChart3 size={16} /> COASTAL CHANGE ANALYSIS</div>
+          <h1>Model results</h1>
+          <p>Thiruvananthapuram Coast, Kerala <span className="header-separator">/</span> 2015–2025</p>
         </div>
         <button type="button" className="result-refresh" onClick={() => runModel(true)} disabled={loading}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} />
-          {loading ? 'Running…' : 'Run XGBoost'}
+          {loading ? 'Processing…' : 'Run analysis'}
         </button>
       </header>
 
       {loading ? (
-        <section className="result-loading">
+        <section className="result-loading clean-state">
           <RefreshCw size={26} className="spin" />
-          <strong>Running the available satellite-scene analysis…</strong>
-          <span>Building spectral-change proxy features and generating the output layer.</span>
+          <strong>Preparing the coastal-change result</strong>
+          <span>Checking satellite coverage, calculating features and rendering the map.</span>
         </section>
       ) : error ? (
-        <section className="result-error">
+        <section className="result-error clean-state" role="alert">
           <AlertTriangle size={24} />
           <div>
-            <strong>XGBoost result could not be generated</strong>
+            <strong>Analysis could not be completed</strong>
             <span>{error}</span>
-            <small>Confirm the FastAPI backend is running. A partial archive should run in clearly labelled development mode; only complete six-band scenes are used.</small>
+            <small>Check the FastAPI terminal for the underlying error, then select Run analysis to retry.</small>
+            <button type="button" className="result-retry-inline" onClick={() => runModel(true)}>Retry analysis</button>
           </div>
         </section>
       ) : (
         <>
-          <section className="result-hero-grid">
-            <article className="result-output-card">
-              <div className="result-card-header">
+          <section className="result-metric-grid" aria-label="Analysis summary">
+            <article className="result-metric">
+              <span>Satellite scenes used</span>
+              <strong>{realScenes}<small> / {totalScenes}</small></strong>
+              <em>{isFull ? 'Complete selected archive' : 'Partial archive · real observations'}</em>
+            </article>
+            <article className="result-metric">
+              <span>High-score area</span>
+              <strong>{Number(result?.high_score_percent || 0).toFixed(1)}<small>%</small></strong>
+              <em>Pixels with proxy score ≥ 0.70</em>
+            </article>
+            <article className="result-metric">
+              <span>Valid map pixels</span>
+              <strong>{Number(result?.pixels_analyzed || 0).toLocaleString('en-IN')}</strong>
+              <em>After masking and quality checks</em>
+            </article>
+            <article className="result-metric">
+              <span>Input features</span>
+              <strong>{Number(result?.feature_count || 0).toLocaleString('en-IN')}</strong>
+              <em>{result?.n_estimators || 0} boosting trees</em>
+            </article>
+          </section>
+
+          <section className="result-map-layout">
+            <article className="result-output-card clean-map-card">
+              <div className="result-card-header clean-map-header">
                 <div>
-                  <span>OUTPUT LAYER</span>
-                  <strong>{result?.model_mode === 'full_55_scene' ? 'XGBoost 55-scene change proxy' : 'XGBoost partial-archive development proxy'}</strong>
+                  <span>SPATIAL OUTPUT</span>
+                  <strong>Spectral-change proxy map</strong>
+                  <p>Color zones show relative model scores across the study area.</p>
                 </div>
-                <span className="result-model-pill">XGBClassifier</span>
+                <span className={isFull ? 'result-status-pill complete' : 'result-status-pill partial'}>
+                  {isFull ? 'Full archive' : 'Development run'}
+                </span>
               </div>
-              <div className="result-image-wrap">
+              <div className="result-image-wrap clean-result-image">
                 {imageError ? (
-                  <div className="result-map-error" role="alert"><AlertTriangle size={22} /><strong>The generated map could not load.</strong><span>Run XGBoost again to regenerate the PNG, then retry.</span></div>
-                ) : <img
-                    src={result?.image_url ? result.image_url + '?v=' + result.run_id : ''}
-                    alt="Geographically annotated XGBoost spectral-change proxy map for the Thiruvananthapuram study area"
+                  <div className="result-map-error" role="alert">
+                    <AlertTriangle size={22} />
+                    <strong>Map image could not load</strong>
+                    <span>The result data loaded, but the PNG endpoint failed.</span>
+                    <button type="button" className="result-retry-inline" onClick={() => runModel(true)}>Regenerate map</button>
+                  </div>
+                ) : (
+                  <img
+                    src={result?.image_url ? result.image_url + '?v=' + encodeURIComponent(result.run_id || 'latest') : ''}
+                    alt="Geographically annotated spectral-change proxy map for Thiruvananthapuram Coast, with score zones, study-area boundary, coordinate labels, north arrow, scale bar and legend"
                     onError={() => setImageError(true)}
-                  />}
-                <div className="result-map-key">Map key: dashed line = study-area boundary; blank pale areas = masked/no data. No coastline is inferred.</div>
+                  />
+                )}
+              </div>
+              <div className="result-map-caption">
+                <span><i className="caption-dot" /> Study-area boundary shown; no coastline is inferred.</span>
+                <span>Map generated {result?.run_id ? result.run_id.replace('T', ' · ').replace('Z', ' UTC') : 'for latest run'}</span>
               </div>
             </article>
 
-            <aside className="result-side-column">
-              <article className="result-stat-card">
-                <span>REAL SCENES USED</span>
-                <strong>{result?.scene_count || 0}/{result?.catalogue_scene_count || 55}</strong>
+            <aside className="result-context-column">
+              <article className="result-context-card">
+                <div className="result-panel-title"><Target size={16} /> MODEL SUMMARY</div>
+                <dl className="result-summary-list">
+                  <div><dt>Algorithm</dt><dd>XGBoost classifier</dd></div>
+                  <div><dt>Analysis period</dt><dd>2015–2025</dd></div>
+                  <div><dt>Target</dt><dd>Spectral-change pseudo-label</dd></div>
+                  <div><dt>Output meaning</dt><dd>Unvalidated change proxy</dd></div>
+                </dl>
               </article>
-              <article className="result-stat-card">
-                <span>HIGH-SCORE AREA</span>
-                <strong>{Number(result?.high_score_percent || 0).toFixed(1)}%</strong>
-              </article>
-              <article className="result-stat-card">
-                <span>FEATURES</span>
-                <strong>{result?.feature_count || 0}</strong>
-              </article>
-              <article className="result-stat-card">
-                <span>BOOSTING TREES</span>
-                <strong>{result?.n_estimators || 0}</strong>
+              <article className="result-context-card">
+                <div className="result-panel-title"><Satellite size={16} /> INPUT COVERAGE</div>
+                <div className="coverage-summary">
+                  <div><span>Real satellite archive</span><strong>{realScenes}/{totalScenes}</strong></div>
+                  <div className="coverage-track"><i style={{ width: Math.min(100, totalScenes ? realScenes / totalScenes * 100 : 0) + '%' }} /></div>
+                </div>
+                <div className="domain-coverage-list">
+                  {domains.map(([name, info]) => (
+                    <div key={name} className="domain-coverage-row">
+                      <span>{name}</span>
+                      <b>{info?.record_count ?? 0} <small>records</small></b>
+                      <em>Synthetic</em>
+                    </div>
+                  ))}
+                </div>
               </article>
             </aside>
           </section>
 
-          <section className="result-bottom-grid">
-            <article className="result-panel">
-              <div className="result-panel-title"><Target size={17} /> MODEL SETUP</div>
-              <div className="result-detail-grid">
-                <div><span>DATA MODE</span><b>{result?.model_mode === 'full_55_scene' ? 'Full 55-scene mode' : 'Development / partial archive'}</b></div>
-                <div><span>ALGORITHM</span><b>XGBoost gradient boosting</b></div>
-                <div><span>TRAINING TARGET</span><b>Spectral-change pseudo-label</b></div>
-                <div><span>OUTPUT</span><b>Unvalidated change proxy</b></div>
-              </div>
-            </article>
-
-            <article className="result-panel">
-              <div className="result-panel-title"><TreePine size={17} /> TOP FEATURES</div>
+          <section className="result-bottom-grid clean-result-bottom">
+            <article className="result-panel clean-result-panel">
+              <div className="result-panel-title"><TreePine size={17} /> MOST INFLUENTIAL FEATURES</div>
+              <p className="panel-description">Relative contribution within this fitted model; not causal importance.</p>
               <div className="feature-list">
-                {(result?.top_features || []).map((feature) => (
-                  <div key={feature.name} className="feature-row">
-                    <span>{feature.name}</span>
-                    <div className="feature-track"><i style={{ width: Math.max(5, feature.importance * 100) + '%' }} /></div>
+                {(result?.top_features || []).slice(0, 8).map((feature) => (
+                  <div key={feature.name} className="feature-row clean-feature-row">
+                    <span title={feature.name}>{feature.name}</span>
+                    <div className="feature-track"><i style={{ width: Math.max(2, feature.importance * 100) + '%' }} /></div>
                     <b>{(feature.importance * 100).toFixed(1)}%</b>
                   </div>
                 ))}
               </div>
             </article>
+            <article className="result-panel clean-result-panel">
+              <div className="result-panel-title"><AlertTriangle size={17} /> INTERPRETATION & LIMITATIONS</div>
+              <ul className="result-limitations">
+                {(result?.limitations || []).map((item, index) => <li key={index}>{item}</li>)}
+              </ul>
+              <div className="result-caveat">
+                <strong>Important</strong>
+                <span>{result?.pseudo_label || 'The output is a spectral-change proxy, not a validated erosion prediction.'}</span>
+              </div>
+            </article>
           </section>
-
-          <div className="result-note">
-            <b>{result?.study_area || 'Thiruvananthapuram Coast, Kerala'} · {result?.analysis_period || '2015–2025'}.</b> {result?.pseudo_label}
-            {' '}Real satellite coverage: {result?.scene_count || 0} of {result?.catalogue_scene_count || 55} selected scenes. Synthetic contextual datasets loaded: shoreline ({result?.domain_coverage?.shoreline_history?.record_count || 0}), terrain ({result?.domain_coverage?.terrain?.record_count || 0}), monthly weather ({result?.domain_coverage?.rainfall_weather?.record_count || 0}), and monthly ocean ({result?.domain_coverage?.ocean_conditions?.record_count || 0}). {(result?.limitations || []).join(' ')}
-          </div>
         </>
       )}
     </main>
