@@ -33,7 +33,7 @@ function SatelliteLatestView() {
   return (
     <main className="xgboost-satellite-split satellite-latest-view" aria-label="Latest satellite imagery">
       {latest?.available ? (
-        <section className="split-side satellite-latest-image">
+        <section className="split-side satellite-latest-image" style={{ gridColumn: "1 / -1" }}>
           <img src={latest.color_preview_url} alt="Latest 2025 satellite imagery of the study area" />
           <div className="satellite-year-label">
             <strong>2025</strong>
