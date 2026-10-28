@@ -67,89 +67,166 @@ def _fit_trend(records: list[dict[str, Any]], year: int) -> dict[str, Any]:
 
 
 def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) -> None:
-    """Render a clean, geographic scenario map without modifying the proxy map."""
+    """Render a satellite-backed forecast scenario with metre-scale overlays."""
+    import csv
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
-    from matplotlib.patches import Rectangle
+    from matplotlib.patches import FancyArrowPatch
+    import rasterio
+    from rasterio.enums import Resampling
+    from rasterio.warp import transform_bounds
+    from pyproj import Transformer
 
     aoi = json.loads(AOI.read_text(encoding="utf-8"))
-    ring = np.asarray(aoi["features"][0]["geometry"]["coordinates"][0], dtype=float)
-    min_lon, min_lat = ring.min(axis=0)
-    max_lon, max_lat = ring.max(axis=0)
-    mean_lat = float((min_lat + max_lat) / 2)
-    # Approximate local scale in longitude degrees at the AOI latitude.
-    km_per_lon_degree = 111.32 * math.cos(math.radians(mean_lat))
-    scale_2km_lon = 2.0 / km_per_lon_degree
+    ring_wgs84 = np.asarray(aoi["features"][0]["geometry"]["coordinates"][0], dtype=float)
+    min_lon, min_lat = ring_wgs84.min(axis=0)
+    max_lon, max_lat = ring_wgs84.max(axis=0)
+    archive_root = ROOT / "data_external" / "thiruvananthapuram_2015_2025"
+    catalogue = ROOT / "data" / "satellite" / "thiruvananthapuram_2015_2025" / "catalog" / "selected_dates.csv"
 
-    colours = {"low": "#16803c", "moderate": "#d97706", "high": "#dc2626"}
+    # Prefer the latest usable real satellite RGB scene, then step backwards.
+    candidates: list[dict[str, str]] = []
+    if catalogue.is_file():
+        with catalogue.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        for row in sorted(rows, key=lambda r: r.get("acquisition_datetime_utc", ""), reverse=True):
+            folder = archive_root / row["year"] / row["acquisition_date_utc"] / row["collection_id"] / row["item_id"]
+            if all((folder / f"{band}.tif").is_file() for band in ("red", "green", "blue")):
+                candidates.append({"folder": str(folder), "date": row["acquisition_date_utc"], "item": row["item_id"]})
+    satellite = None
+    scene_date = None
+    for candidate in candidates:
+        try:
+            folder = Path(candidate["folder"])
+            with rasterio.open(folder / "red.tif") as src:
+                if src.width > 1 and src.height > 1:
+                    satellite = (folder, src.crs, src.transform, src.width, src.height, src.bounds)
+                    scene_date = candidate["date"]
+                    break
+        except Exception:
+            continue
+
+    colours = {"low": "#f59e0b", "moderate": "#f97316", "high": "#dc2626"}
     fig, ax = plt.subplots(figsize=(12, 9), dpi=180, facecolor="#f8fafc")
-    fig.subplots_adjust(left=.10, right=.97, top=.90, bottom=.13)
-    ax.set_facecolor("#edf4f7")
+    fig.subplots_adjust(left=.09, right=.97, top=.90, bottom=.12)
+    ax.set_facecolor("#dbeafe")
+    image_extent = None
+    map_crs = None
+    if satellite:
+        folder, map_crs, transform, width, height, bounds = satellite
+        max_dim = 1400
+        scale = max(1, int(math.ceil(max(width, height) / max_dim)))
+        rgb = []
+        rgb_valid = None
+        for band in ("red", "green", "blue"):
+            with rasterio.open(folder / f"{band}.tif") as src:
+                arr = src.read(1, out_shape=(max(1, src.height // scale), max(1, src.width // scale)), resampling=Resampling.bilinear).astype("float32")
+                valid = np.isfinite(arr)
+                if src.nodata is not None:
+                    valid &= arr != src.nodata
+                valid &= arr > 0
+                rgb_valid = valid if rgb_valid is None else (rgb_valid & valid)
+                vals = arr[valid]
+                if vals.size:
+                    lo, hi = np.percentile(vals, (2, 98))
+                    arr = np.clip((arr - lo) / max(float(hi - lo), 1e-6), 0, 1)
+                else:
+                    arr[:] = 0
+                rgb.append(arr)
+        image = np.dstack([*rgb, rgb_valid.astype("float32") if rgb_valid is not None else np.ones_like(rgb[0])])
+        with rasterio.open(folder / "red.tif") as src:
+            image_extent = (src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top)
+            map_crs = src.crs
+        ax.imshow(image, extent=image_extent, origin="upper", interpolation="nearest", zorder=0)
+        # Limit to the configured AOI while respecting the scene's actual footprint.
+        try:
+            aoi_bounds = transform_bounds("EPSG:4326", map_crs, min_lon, min_lat, max_lon, max_lat, densify_pts=21)
+            ax.set_xlim(max(aoi_bounds[0], image_extent[0]), min(aoi_bounds[2], image_extent[1]))
+            ax.set_ylim(max(aoi_bounds[1], image_extent[2]), min(aoi_bounds[3], image_extent[3]))
+        except Exception:
+            ax.set_xlim(image_extent[0], image_extent[1]); ax.set_ylim(image_extent[2], image_extent[3])
+        to_map = Transformer.from_crs("EPSG:4326", map_crs, always_xy=True)
+        to_geo = Transformer.from_crs(map_crs, "EPSG:4326", always_xy=True)
+        # Coordinate grid and scale use the image's native projected CRS.
+        ax.set_xlabel(f"Projected easting ({map_crs})", fontsize=9)
+        ax.set_ylabel("Projected northing (metres)", fontsize=9)
+    else:
+        # Honest fallback: no satellite imagery is fabricated when the archive is absent.
+        ax.fill(ring_wgs84[:, 0], ring_wgs84[:, 1], color="#f8fafc", zorder=0)
+        ax.plot(ring_wgs84[:, 0], ring_wgs84[:, 1], color="#334155", linewidth=1.8, zorder=1)
+        ax.set_xlim(min_lon, max_lon); ax.set_ylim(min_lat, max_lat)
+        to_map = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+        to_geo = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+        ax.set_xlabel("Longitude (WGS 84)", fontsize=9)
+        ax.set_ylabel("Latitude (WGS 84)", fontsize=9)
 
-    # AOI mask/background: explicitly show the study boundary, not an invented coastline.
-    ax.fill(ring[:, 0], ring[:, 1], color="#f8fafc", zorder=0)
-    ax.plot(ring[:, 0], ring[:, 1], color="#334155", linewidth=1.8, zorder=1, label="Study-area boundary")
-
-    # Draw a restrained, labelled geographic grid.
-    ax.set_xlim(min_lon, max_lon)
-    ax.set_ylim(min_lat, max_lat)
-    ax.set_xticks(np.linspace(min_lon, max_lon, 6))
-    ax.set_yticks(np.linspace(min_lat, max_lat, 6))
-    ax.grid(True, color="#94a3b8", linewidth=.6, alpha=.45, zorder=0)
-    ax.tick_params(labelsize=8, colors="#334155")
-
-    # Show forecast locations only; do not imply that points are a measured shoreline.
+    # Fixed transect points are scenario locations, not claimed measured shoreline vertices.
+    projected = []
     for item in sorted(transects, key=lambda row: row["transect_id"]):
-        color = colours[item["risk_category"]]
-        ax.scatter(item["lon"], item["lat"], s=115, color=color, edgecolor="white",
-                   linewidth=1.4, zorder=4)
-        ax.annotate(
-            f'{item["transect_id"]}  {item["forecast_displacement_m"]:+.1f} m',
-            (item["lon"], item["lat"]), xytext=(7, 7), textcoords="offset points",
-            fontsize=8, color="#0f172a", fontweight="semibold", zorder=5,
-            bbox={"boxstyle": "round,pad=.25", "facecolor": "white", "edgecolor": "#cbd5e1", "alpha": .94},
-        )
+        x, y = to_map.transform(float(item["lon"]), float(item["lat"]))
+        projected.append({**item, "x": x, "y": y})
 
-    # Approximate 2 km scale bar, appropriate for this small geographic extent.
-    bar_x = min_lon + (max_lon - min_lon) * .055
-    bar_y = min_lat + (max_lat - min_lat) * .065
-    ax.plot([bar_x, bar_x + scale_2km_lon], [bar_y, bar_y], color="#0f172a",
-            linewidth=4, solid_capstyle="butt", zorder=6)
-    ax.plot([bar_x, bar_x], [bar_y - .0007, bar_y + .0007], color="#0f172a", linewidth=1.5, zorder=6)
-    ax.plot([bar_x + scale_2km_lon, bar_x + scale_2km_lon],
-            [bar_y - .0007, bar_y + .0007], color="#0f172a", linewidth=1.5, zorder=6)
-    ax.text(bar_x + scale_2km_lon / 2, bar_y + .0016, "2 km (approx.)",
-            ha="center", va="bottom", fontsize=8, color="#0f172a", fontweight="bold",
-            bbox={"facecolor": "white", "edgecolor": "none", "alpha": .85, "pad": 2}, zorder=7)
+    # The transect locations define a local along-coast tangent. Draw a red
+    # displacement vector perpendicular to that tangent, with length in metres.
+    for i, item in enumerate(projected):
+        prev_item = projected[max(0, i - 1)]
+        next_item = projected[min(len(projected) - 1, i + 1)]
+        tx, ty = next_item["x"] - prev_item["x"], next_item["y"] - prev_item["y"]
+        norm = math.hypot(tx, ty) or 1.0
+        nx, ny = -ty / norm, tx / norm
+        # Direction is illustrative because no surveyed landward normal is available.
+        retreat_m = abs(float(item["forecast_displacement_m"]))
+        x0, y0 = item["x"], item["y"]
+        x1, y1 = x0 + nx * retreat_m, y0 + ny * retreat_m
+        if satellite and map_crs and getattr(map_crs, "is_projected", False):
+            ax.plot([x0, x1], [y0, y1], color="#ef4444", linewidth=2.8, zorder=5, solid_capstyle="round")
+            ax.scatter([x0], [y0], s=26, color="#fff", edgecolor="#ef4444", linewidth=1.3, zorder=6)
+            ax.scatter([x1], [y1], s=25, color="#ef4444", edgecolor="white", linewidth=.7, zorder=6)
+            ax.annotate(f'{item["transect_id"]}: {retreat_m:.1f} m',
+                        (x1, y1), xytext=(5, 5), textcoords="offset points",
+                        fontsize=8, color="#991b1b", fontweight="bold", zorder=7,
+                        bbox={"boxstyle":"round,pad=.22","facecolor":"white","edgecolor":"#fecaca","alpha":.94})
+        else:
+            # No metre-accurate satellite CRS: show the scenario marker, not a fake metre-scale line.
+            ax.scatter([x0], [y0], s=75, color=colours[item["risk_category"]],
+                       edgecolor="white", linewidth=1.1, zorder=5)
+            ax.annotate(f'{item["transect_id"]}: {retreat_m:.1f} m',
+                        (x0, y0), xytext=(5, 5), textcoords="offset points",
+                        fontsize=8, color="#991b1b", fontweight="bold", zorder=6,
+                        bbox={"boxstyle":"round,pad=.22","facecolor":"white","edgecolor":"#fecaca","alpha":.94})
 
-    # North arrow.
-    arrow_x = max_lon - (max_lon - min_lon) * .075
-    arrow_y = max_lat - (max_lat - min_lat) * .12
-    ax.annotate("N", xy=(arrow_x, arrow_y), xytext=(arrow_x, arrow_y - .012),
-                ha="center", va="center", fontsize=10, fontweight="bold",
-                arrowprops={"arrowstyle": "-|>", "color": "#0f172a", "lw": 1.5}, zorder=7)
-
+    if satellite and map_crs and getattr(map_crs, "is_projected", False):
+        xmin, xmax = ax.get_xlim(); ymin, ymax = ax.get_ylim()
+        bar_x, bar_y = xmin + (xmax-xmin)*.05, ymin + (ymax-ymin)*.07
+        ax.plot([bar_x, bar_x+2000], [bar_y, bar_y], color="white", linewidth=5, zorder=8)
+        ax.plot([bar_x, bar_x+2000], [bar_y, bar_y], color="#0f172a", linewidth=2.2, zorder=9)
+        ax.text(bar_x+1000, bar_y+(ymax-ymin)*.012, "2 km", ha="center", va="bottom",
+                color="#0f172a", fontsize=8, fontweight="bold",
+                bbox={"facecolor":"white","edgecolor":"none","alpha":.85,"pad":2}, zorder=9)
+        ax.annotate("N", xy=(xmax-(xmax-xmin)*.07, ymax-(ymax-ymin)*.08),
+                    xytext=(xmax-(xmax-xmin)*.07, ymax-(ymax-ymin)*.16),
+                    ha="center", fontsize=10, fontweight="bold",
+                    arrowprops={"arrowstyle":"-|>","color":"white","lw":2}, zorder=9)
+        ax.text(.01, .015, f"Satellite scene: {scene_date} • Source archive: Microsoft Planetary Computer",
+                transform=ax.transAxes, fontsize=8, color="white", va="bottom",
+                bbox={"facecolor":"#0f172a","edgecolor":"none","alpha":.75,"pad":3}, zorder=10)
+    ax.grid(False)
+    ax.set_title(f"Thiruvananthapuram Coast — {year} Shoreline Retreat Scenario",
+                 loc="left", fontsize=15, fontweight="bold", color="#0f172a", pad=16)
+    subtitle = "Red lines show scenario displacement in metres • Direction is illustrative; shoreline baseline not surveyed"
+    if not satellite:
+        subtitle += " • Satellite archive RGB unavailable locally"
+    ax.text(0, 1.015, subtitle, transform=ax.transAxes, fontsize=9, color="#475569", va="bottom")
     handles = [
-        Line2D([], [], marker="o", linestyle="", color=colours["low"], markeredgecolor="white", label="Lower scenario rate"),
-        Line2D([], [], marker="o", linestyle="", color=colours["moderate"], markeredgecolor="white", label="Moderate scenario rate"),
-        Line2D([], [], marker="o", linestyle="", color=colours["high"], markeredgecolor="white", label="Higher scenario rate"),
-        Line2D([], [], color="#334155", linewidth=1.8, label="Study-area boundary"),
+        Line2D([], [], color="#ef4444", linewidth=2.8, label="Illustrative retreat distance (m)"),
+        Line2D([], [], marker="o", linestyle="", color="#fff", markeredgecolor="#ef4444", label="Scenario transect location"),
     ]
-    ax.legend(handles=handles, loc="upper left", frameon=True, framealpha=.97,
-              facecolor="white", edgecolor="#cbd5e1", fontsize=8, title="Map key", title_fontsize=9)
-
-    ax.set_xlabel("Longitude (WGS 84)", fontsize=9, labelpad=8)
-    ax.set_ylabel("Latitude (WGS 84)", fontsize=9, labelpad=8)
-    ax.set_title(f"Thiruvananthapuram Coast — {year} Shoreline Scenario",
-                 loc="left", fontsize=15, fontweight="bold", color="#0f172a", pad=18)
-    ax.text(0, 1.015,
-            "Scenario locations and trend estimates • Forecast origin: end of 2025 • Negative displacement = retreat",
-            transform=ax.transAxes, fontsize=9, color="#475569", va="bottom")
-    fig.text(.10, .045,
-             "Illustrative scenario, not a real-time observation or validated erosion forecast. "
-             "The boundary is the configured study area; no coastline is inferred.",
+    ax.legend(handles=handles, loc="lower right", frameon=True, framealpha=.96,
+              facecolor="white", edgecolor="#cbd5e1", fontsize=8)
+    fig.text(.09, .035,
+             "Illustrative scenario only—not a real-time or validated erosion forecast. Red-line lengths represent scenario displacement; direction is not surveyed.",
              fontsize=8, color="#475569", ha="left", va="bottom", wrap=True)
     fig.savefig(output, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
