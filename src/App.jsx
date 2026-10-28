@@ -293,9 +293,9 @@ function ResultView() {
               : forecastError ? <div className="forecast-state error"><AlertTriangle size={20} /> {forecastError}<button type="button" onClick={() => loadForecast(forecastYear, true)}>Retry</button></div>
               : <div className="forecast-grid">
                   <article className="result-output-card forecast-map-card">
-                    <div className="forecast-warning"><AlertTriangle size={15} /> Synthetic development preview — not a scientific coastal forecast.</div>
+                    <div className="forecast-warning"><AlertTriangle size={15} /> Scenario preview — illustrative only; not a validated coastal forecast.</div>
                     {forecastImageError ? <div className="result-map-error"><AlertTriangle size={22}/><strong>Forecast map could not load</strong><button type="button" className="result-retry-inline" onClick={() => loadForecast(forecastYear, true)}>Regenerate</button></div>
-                      : <img className="forecast-map-image" src={apiUrl(`${forecast?.artifact_urls?.map || forecast?.image_url}?v=${forecastYear}-${encodeURIComponent(forecast?.input_signature || '')}`)} onError={() => setForecastImageError(true)} alt={`${forecastYear} synthetic development shoreline trend preview`} />}
+                      : <img className="forecast-map-image" src={apiUrl(`${forecast?.artifact_urls?.map || forecast?.image_url}?v=${forecastYear}-${encodeURIComponent(forecast?.input_signature || '')}`)} onError={() => setForecastImageError(true)} alt={`${forecastYear} illustrative shoreline trend scenario`} />}
                   </article>
                   <aside className="forecast-summary">
                     <span>MODEL STATUS</span><strong>Real ML forecast unavailable</strong>
@@ -383,7 +383,7 @@ function ResultView() {
                     <div key={name} className="domain-coverage-row">
                       <span>{name}</span>
                       <b>{info?.record_count ?? 0} <small>records</small></b>
-                      <em>Synthetic</em>
+                      <em>Scenario data</em>
                     </div>
                   ))}
                 </div>
