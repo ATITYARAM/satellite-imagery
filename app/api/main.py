@@ -47,7 +47,7 @@ def domains():
 @app.get('/satellite/data')
 def satellite_data():
     result = {'source': 'Microsoft Planetary Computer', 'years': {}}
-    for year in (2016, 2026):
+    for year in (2015, 2025):
         year_dir = DATA_ROOT / str(year)
         metadata_path = year_dir / 'metadata.json'
         if not metadata_path.exists():
@@ -83,7 +83,7 @@ def satellite_data():
 
 @app.get('/satellite/rgb/{year}.png')
 def satellite_rgb(year: int):
-    if year not in (2016, 2026):
+    if year not in (2015, 2025):
         raise HTTPException(status_code=404, detail='Satellite year not found')
 
     import matplotlib
