@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import planetary_computer
+import pystac
 import pystac_client
 import rasterio
 import requests
@@ -231,7 +232,7 @@ def sample_dates(
 
 def download_clip(item_row: dict[str, Any], aoi_geojson: dict[str, Any], output_root: Path) -> dict[str, Any]:
     """Download and AOI-clip standardized bands for one selected acquisition date."""
-    item = pystac_client.Item.from_dict(item_row["item_json"])
+    item = pystac.Item.from_dict(item_row["item_json"])
     collection_id = item_row["collection_id"]
     date = item_row["acquisition_date_utc"]
     folder = output_root / str(item_row["year"]) / date / collection_id / item.id
