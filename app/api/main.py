@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import shutil
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -33,6 +34,7 @@ def current_aoi_bounds():
     return [round(min(xs), 6), round(min(ys), 6), round(max(xs), 6), round(max(ys), 6)]
 
 app = FastAPI(title='Coastal Erosion Prediction Platform API', version='0.1.0')
+XGBOOST_RUN_LOCK = threading.Lock()
 
 @app.get('/health')
 def health():
@@ -476,20 +478,35 @@ def shoreline_data():
         ) from exc
 
 
-@app.get('/xgboost/result')
-def xgboost_result(force: bool = False):
+def _run_xgboost_response(force: bool = False):
+    if not XGBOOST_RUN_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail='An XGBoost run is already in progress. Please retry shortly.')
     try:
         return run_xgboost(force=force)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f'XGBoost run failed: {exc}') from exc
+    finally:
+        XGBOOST_RUN_LOCK.release()
+
+
+@app.get('/xgboost/result')
+def xgboost_result(force: bool = False):
+    """Return the cached result or generate a reproducible result on demand."""
+    return _run_xgboost_response(force)
+
+
+@app.post('/xgboost/run')
+def xgboost_run(force: bool = True):
+    """Explicit run endpoint used by the result-page action."""
+    return _run_xgboost_response(force)
 
 
 @app.get('/xgboost/result.png')
 def xgboost_result_image():
     try:
-        run_xgboost(force=False)
+        _run_xgboost_response(force=False)
         if not RESULT_IMAGE.exists():
             raise FileNotFoundError('XGBoost result image was not created')
         return FileResponse(RESULT_IMAGE, media_type='image/png')

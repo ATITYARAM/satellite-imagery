@@ -187,7 +187,9 @@ function ResultView() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/xgboost/result' + (force ? '?force=true' : ''));
+      const response = force
+        ? await fetch('/xgboost/run?force=true', { method: 'POST' })
+        : await fetch('/xgboost/result');
       if (!response.ok) {
         const detail = await response.text();
         throw new Error(detail || 'XGBoost result unavailable');
@@ -212,7 +214,7 @@ function ResultView() {
         <div>
           <div className="result-eyebrow"><BarChart3 size={16} /> MODEL OUTPUT</div>
           <h1>XGBoost Result</h1>
-          <p>2015–2025 coastal-change analysis using all 55 selected satellite acquisition dates (five per year), including Landsat and Sentinel-2 observations.</p>
+          <p>Thiruvananthapuram Coast, Kerala · 2015–2025 coastal-change proxy from available selected satellite observations.</p>
         </div>
         <button type="button" className="result-refresh" onClick={() => runModel(true)} disabled={loading}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} />
@@ -223,8 +225,8 @@ function ResultView() {
       {loading ? (
         <section className="result-loading">
           <RefreshCw size={26} className="spin" />
-          <strong>Running XGBoost across all selected satellite acquisition dates from 2015–2025…</strong>
-          <span>Building paired spectral features and generating the output layer.</span>
+          <strong>Running the available satellite-scene analysis…</strong>
+          <span>Building spectral-change proxy features and generating the output layer.</span>
         </section>
       ) : error ? (
         <section className="result-error">
@@ -232,7 +234,7 @@ function ResultView() {
           <div>
             <strong>XGBoost result could not be generated</strong>
             <span>{error}</span>
-            <small>Make sure the FastAPI backend is running and all six standardized bands are downloaded for every selected date in data_external/thiruvananthapuram_2015_2025/.</small>
+            <small>Confirm the FastAPI backend is running. A partial archive should run in clearly labelled development mode; only complete six-band scenes are used.</small>
           </div>
         </section>
       ) : (
@@ -242,7 +244,7 @@ function ResultView() {
               <div className="result-card-header">
                 <div>
                   <span>OUTPUT LAYER</span>
-                  <strong>XGBoost all-date change score</strong>
+                  <strong>{result?.model_mode === 'full_55_scene' ? 'XGBoost 55-scene change proxy' : 'XGBoost partial-archive development proxy'}</strong>
                 </div>
                 <span className="result-model-pill">XGBClassifier</span>
               </div>
@@ -261,8 +263,8 @@ function ResultView() {
 
             <aside className="result-side-column">
               <article className="result-stat-card">
-                <span>PIXELS ANALYZED</span>
-                <strong>{Number(result?.pixels_analyzed || 0).toLocaleString()}</strong>
+                <span>REAL SCENES USED</span>
+                <strong>{result?.scene_count || 0}/{result?.catalogue_scene_count || 55}</strong>
               </article>
               <article className="result-stat-card">
                 <span>HIGH-SCORE AREA</span>
@@ -283,10 +285,10 @@ function ResultView() {
             <article className="result-panel">
               <div className="result-panel-title"><Target size={17} /> MODEL SETUP</div>
               <div className="result-detail-grid">
-                <div><span>INPUT YEARS</span><b>2015 + 2020 + 2025</b></div>
+                <div><span>DATA MODE</span><b>{result?.model_mode === 'full_55_scene' ? 'Full 55-scene mode' : 'Development / partial archive'}</b></div>
                 <div><span>ALGORITHM</span><b>XGBoost gradient boosting</b></div>
-                <div><span>TRAINING TARGET</span><b>Paired-image pseudo-label</b></div>
-                <div><span>OUTPUT</span><b>Probability of erosion-like change</b></div>
+                <div><span>TRAINING TARGET</span><b>Spectral-change pseudo-label</b></div>
+                <div><span>OUTPUT</span><b>Unvalidated change proxy</b></div>
               </div>
             </article>
 
@@ -305,7 +307,8 @@ function ResultView() {
           </section>
 
           <div className="result-note">
-            Prototype note: the model uses 2015, 2020 and 2025 imagery, including five-year interval features. Without erosion ground-truth labels, its output is a spectral-change proxy, not a validated erosion measurement or the final five-domain model.
+            <b>{result?.study_area || 'Thiruvananthapuram Coast, Kerala'} · {result?.analysis_period || '2015–2025'}.</b> {result?.pseudo_label}
+            {' '}Real satellite coverage: {result?.scene_count || 0} of {result?.catalogue_scene_count || 55} selected scenes. Synthetic contextual datasets loaded: shoreline ({result?.domain_coverage?.shoreline_history?.record_count || 0}), terrain ({result?.domain_coverage?.terrain?.record_count || 0}), monthly weather ({result?.domain_coverage?.rainfall_weather?.record_count || 0}), and monthly ocean ({result?.domain_coverage?.ocean_conditions?.record_count || 0}). {(result?.limitations || []).join(' ')}
           </div>
         </>
       )}
