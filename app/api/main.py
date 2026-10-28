@@ -67,19 +67,23 @@ def satellite_archive_preview(year: int):
     date = selected['acquisition_date_utc']
     collection = selected['collection_id']
     item_id = selected['item_id']
-    scene_dir = ARCHIVE_ROOT / str(year) / date / collection / item_id
+    year_root = ARCHIVE_ROOT / str(year)
+    scene_dir = year_root / date / collection / item_id
 
-    # Download logs can be used when the folder layout differs slightly.
+    # The download manifest may have produced a slightly different directory layout.
+    # Search recursively by the exact scene ID before reporting the scene missing.
     if not scene_dir.is_dir():
-        matches = list((ARCHIVE_ROOT / str(year)).glob(f'*/{collection}/{item_id}'))
+        matches = list(year_root.rglob(item_id)) if year_root.is_dir() else []
+        matches = [path for path in matches if path.is_dir()]
         if matches:
             scene_dir = matches[0]
 
     band_paths = [scene_dir / name for name in ('red.tif', 'green.tif', 'blue.tif')]
     if not all(path.is_file() for path in band_paths):
+        missing = [path.name for path in band_paths if not path.is_file()]
         raise HTTPException(
             status_code=404,
-            detail=f'Archive scene {item_id} ({date}) is not fully downloaded; missing RGB bands in {scene_dir}',
+            detail=f'Archive scene {item_id} ({date}) is missing RGB bands {missing}. Expected folder: {scene_dir}',
         )
 
     import matplotlib
