@@ -213,6 +213,23 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
                 pass
         projected.append({**item, "x": x, "y": y})
 
+    # Frame the map around the visible coastal transects rather than showing
+    # a mostly empty AOI. Keep a minimum 1.5 km margin and clip to the actual
+    # satellite scene footprint so the land/coast occupies the image.
+    if satellite and projected:
+        try:
+            xmin, xmax = ax.get_xlim()
+            ymin, ymax = ax.get_ylim()
+            px = [item["x"] for item in projected]
+            py = [item["y"] for item in projected]
+            pad_x = max(1500.0, (max(px) - min(px)) * 0.18)
+            pad_y = max(1500.0, (max(py) - min(py)) * 0.12)
+            ax.set_xlim(max(xmin, min(px) - pad_x), min(xmax, max(px) + pad_x))
+            ax.set_ylim(max(ymin, min(py) - pad_y), min(ymax, max(py) + pad_y))
+            ax.set_aspect("equal", adjustable="box")
+        except Exception:
+            pass
+
     # The transect locations define a local along-coast tangent. Draw a red
     # displacement vector perpendicular to that tangent, with length in metres.
     for i, item in enumerate(projected):
@@ -258,12 +275,12 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
                 transform=ax.transAxes, fontsize=8, color="white", va="bottom",
                 bbox={"facecolor":"#0f172a","edgecolor":"none","alpha":.75,"pad":3}, zorder=10)
     ax.grid(False)
-    ax.set_title(f"Thiruvananthapuram Coast — {year} Shoreline Retreat Scenario",
-                 loc="left", fontsize=15, fontweight="bold", color="#0f172a", pad=16)
+    ax.set_title(f"Thiruvananthapuram Coast — {year} Scenario",
+                 loc="left", fontsize=13, fontweight="bold", color="#0f172a", pad=8)
     subtitle = "Red lines show scenario displacement in metres • Direction is illustrative; shoreline baseline not surveyed"
     if not satellite:
         subtitle += " • Satellite archive RGB unavailable locally"
-    ax.text(0, 1.015, subtitle, transform=ax.transAxes, fontsize=9, color="#475569", va="bottom")
+    ax.text(0, 1.006, subtitle, transform=ax.transAxes, fontsize=8, color="#475569", va="bottom")
     handles = [
         Line2D([], [], color="#ef4444", linewidth=2.8, label="Illustrative retreat distance (m)"),
         Line2D([], [], marker="o", linestyle="", color="#fff", markeredgecolor="#ef4444", label="Scenario transect location"),
@@ -280,7 +297,7 @@ def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
     if year not in (2026, 2027):
         raise ValueError("Forecast year must be 2026 or 2027")
     records, metadata = _fixture_records()
-    signature = hashlib.sha256(FIXTURE.read_bytes() + b"|coastal-framing-rgb-coverage-snap-v4").hexdigest()
+    signature = hashlib.sha256(FIXTURE.read_bytes() + b"|coastal-framing-rgb-coverage-snap-v5").hexdigest()
     year_dir = OUTPUT_DIR / str(year)
     year_dir.mkdir(parents=True, exist_ok=True)
     output, result_path, geojson_path = year_dir / "forecast_map.png", year_dir / "forecast.json", year_dir / "transects.geojson"
