@@ -505,13 +505,27 @@ def xgboost_run(force: bool = True):
 
 @app.get('/xgboost/result.png')
 def xgboost_result_image():
+    """Serve the cached map without starting a second model run.
+
+    The result JSON endpoint can trigger training while the browser requests
+    the PNG immediately afterwards. Calling run_xgboost here as well races the
+    run lock and turns a valid map request into a 500. Only generate a result
+    when the image is genuinely absent.
+    """
     try:
-        _run_xgboost_response(force=False)
-        if not RESULT_IMAGE.exists():
+        if not RESULT_IMAGE.is_file() or RESULT_IMAGE.stat().st_size == 0:
+            _run_xgboost_response(force=False)
+        if not RESULT_IMAGE.is_file() or RESULT_IMAGE.stat().st_size == 0:
             raise FileNotFoundError('XGBoost result image was not created')
-        return FileResponse(RESULT_IMAGE, media_type='image/png')
+        return FileResponse(
+            RESULT_IMAGE,
+            media_type='image/png',
+            headers={'Cache-Control': 'no-cache, must-revalidate'},
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f'XGBoost result image failed: {exc}') from exc
 
