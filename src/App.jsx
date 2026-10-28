@@ -8,6 +8,50 @@ function getRequestedSection() {
   return SECTIONS.some((section) => section.id === requested) ? requested : 'satellite';
 }
 
+function SatelliteLatestView() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/satellite/data')
+      .then((response) => {
+        if (!response.ok) throw new Error('Satellite data unavailable');
+        return response.json();
+      })
+      .then((value) => {
+        if (!cancelled) setData(value);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load satellite data');
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const latest = data?.years?.['2025'];
+
+  return (
+    <main className="xgboost-satellite-split satellite-latest-view" aria-label="Latest satellite imagery">
+      {latest?.available ? (
+        <section className="split-side satellite-latest-image">
+          <img src={latest.color_preview_url} alt="Latest 2025 satellite imagery of the study area" />
+          <div className="satellite-year-label">
+            <strong>2025</strong>
+            <span>Latest available satellite observation</span>
+          </div>
+        </section>
+      ) : (
+        <section className="split-side satellite-latest-image">
+          <div className="satellite-unavailable">
+            <strong>{error ? 'Satellite data could not be loaded' : '2025 imagery not loaded'}</strong>
+            <span>{error || 'Check the backend and confirm the 2025 imagery bands and metadata are present for this study area.'}</span>
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
 function XGBoostSatelliteSplit({ onToggleView, colorView }) {
   const [data, setData] = useState(null);
 
@@ -239,7 +283,20 @@ export default function App() {
     };
   }, []);
 
-  if (activeSection === 'satellite' || activeSection === 'prediction') {
+  if (activeSection === 'satellite') {
+    return (
+      <div className="app-container">
+        <Sidebar
+          activeSection={activeSection}
+          onSelect={selectSection}
+          onSatelliteDoubleClick={openSatelliteData}
+        />
+        <SatelliteLatestView />
+      </div>
+    );
+  }
+
+  if (activeSection === 'prediction') {
     return (
       <div className="app-container">
         <Sidebar
