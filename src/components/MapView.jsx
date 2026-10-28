@@ -37,7 +37,7 @@ function featureYear(feature) {
   ];
   for (const value of candidates) {
     if (value == null || value === '') continue;
-    const match = String(value).match(/(?:19|20)\\d{2}/);
+    const match = String(value).match(/(?:19|20)\d{2}/);
     if (match) {
       const year = Number(match[0]);
       if (year >= 1900 && year <= 2100) return year;
