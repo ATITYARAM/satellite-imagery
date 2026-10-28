@@ -36,6 +36,7 @@ BANDS = {
 PLATFORMS = {
     2015: ("landsat-8",),
     2016: ("landsat-8",),
+    2020: ("landsat-8",),
     2025: ("landsat-9", "landsat-8"),
     2026: ("landsat-9", "landsat-8"),
 }
@@ -161,12 +162,12 @@ def download_year(year: int, max_cloud: float) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--year", type=int, action="append", choices=sorted(PLATFORMS),
-                        help="Year to download; repeat to fetch both. Default: 2016 and 2026.")
+                        help="Year to download; repeat to fetch multiple years. Default: 2015 and 2025.")
     parser.add_argument("--max-cloud", type=float, default=35.0,
                         help="Maximum scene cloud cover percentage (default: 35).")
     args = parser.parse_args()
 
-    years = args.year or [2016, 2026]
+    years = args.year or [2015, 2025]
     for year in years:
         metadata = download_year(year, args.max_cloud)
         print(
