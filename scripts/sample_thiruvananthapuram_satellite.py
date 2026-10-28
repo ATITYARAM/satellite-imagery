@@ -34,15 +34,15 @@ from shapely.geometry import box, shape
 
 ROOT = Path(__file__).resolve().parents[1]
 AOI_PATH = ROOT / "config" / "aoi.geojson"
-ARCHIVE = ROOT / "data" / "satellite" / "thiruvananthapuram_2010_2025"
+ARCHIVE = ROOT / "data" / "satellite" / "thiruvananthapuram_2015_2025"
 CATALOG_DIR = ARCHIVE / "catalog"
 METADATA_DIR = ARCHIVE / "metadata"
 STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/"
 COLLECTIONS = ("landsat-c2-l2", "sentinel-2-l2a")
-START_YEAR = 2010
+START_YEAR = 2015
 END_YEAR = 2025
 DEFAULT_SEED = 20261028
-DEFAULT_TARGET = 50
+DEFAULT_TARGET = 7
 
 # Standardized output names -> source asset key, by collection.
 BAND_ASSETS = {
@@ -297,7 +297,7 @@ def main() -> int:
     parser.add_argument("--target-per-year", type=int, default=DEFAULT_TARGET)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--download", action="store_true", help="Download and clip all selected dates to data_external/ (large; not committed to Git).")
-    parser.add_argument("--output-dir", default=os.environ.get("SATELLITE_DATA_DIR", str(ROOT / "data_external" / "thiruvananthapuram_2010_2025")),
+    parser.add_argument("--output-dir", default=os.environ.get("SATELLITE_DATA_DIR", str(ROOT / "data_external" / "thiruvananthapuram_2015_2025")),
                         help="Raster output directory; defaults outside tracked Git data.")
     parser.add_argument("--log-level", default="INFO", choices=("DEBUG", "INFO", "WARNING", "ERROR"))
     args = parser.parse_args()
