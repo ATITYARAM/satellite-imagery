@@ -95,27 +95,45 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
             folder = archive_root / row["year"] / row["acquisition_date_utc"] / row["collection_id"] / row["item_id"]
             if all((folder / f"{band}.tif").is_file() for band in ("red", "green", "blue")):
                 candidates.append({"folder": str(folder), "date": row["acquisition_date_utc"], "item": row["item_id"]})
+    # Prefer the scene with the largest usable RGB footprint, not simply
+    # the newest file: some catalogue scenes have only a narrow valid strip.
     satellite = None
     scene_date = None
+    best_rgb_coverage = -1.0
     for candidate in candidates:
         try:
             folder = Path(candidate["folder"])
+            channels, common_valid = [], None
             with rasterio.open(folder / "red.tif") as src:
-                if src.width > 1 and src.height > 1:
-                    satellite = (folder, src.crs, src.transform, src.width, src.height, src.bounds)
-                    scene_date = candidate["date"]
-                    break
+                if src.width <= 1 or src.height <= 1 or not src.crs:
+                    continue
+                sample_shape = (min(500, src.height), min(500, src.width))
+                bounds = src.bounds
+                scene_crs, scene_transform = src.crs, src.transform
+                scene_width, scene_height = src.width, src.height
+            for band in ("red", "green", "blue"):
+                with rasterio.open(folder / f"{band}.tif") as src:
+                    sample = src.read(1, out_shape=sample_shape, resampling=Resampling.nearest).astype("float32")
+                    valid = np.isfinite(sample) & (sample > 0)
+                    if src.nodata is not None:
+                        valid &= sample != src.nodata
+                    common_valid = valid if common_valid is None else (common_valid & valid)
+            coverage = float(common_valid.mean()) if common_valid is not None else 0.0
+            if coverage > best_rgb_coverage:
+                best_rgb_coverage = coverage
+                satellite = (folder, scene_crs, scene_transform, scene_width, scene_height, bounds, coverage)
+                scene_date = candidate["date"]
         except Exception:
             continue
 
     colours = {"low": "#f59e0b", "moderate": "#f97316", "high": "#dc2626"}
-    fig, ax = plt.subplots(figsize=(12, 9), dpi=180, facecolor="#f8fafc")
-    fig.subplots_adjust(left=.09, right=.97, top=.90, bottom=.12)
+    fig, ax = plt.subplots(figsize=(12, 8.2), dpi=180, facecolor="#f8fafc")
+    fig.subplots_adjust(left=.09, right=.97, top=.84, bottom=.12)
     ax.set_facecolor("#dbeafe")
     image_extent = None
     map_crs = None
     if satellite:
-        folder, map_crs, transform, width, height, bounds = satellite
+        folder, map_crs, transform, width, height, bounds, rgb_coverage = satellite
         max_dim = 1400
         scale = max(1, int(math.ceil(max(width, height) / max_dim)))
         rgb = []
@@ -139,6 +157,9 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
         with rasterio.open(folder / "red.tif") as src:
             image_extent = (src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top)
             map_crs = src.crs
+            # Transform from the downsampled image pixels back to map metres.
+            from rasterio.transform import Affine
+            image_transform = src.transform * Affine.scale(src.width / image.shape[1], src.height / image.shape[0])
         ax.imshow(image, extent=image_extent, origin="upper", interpolation="nearest", zorder=0)
         # Limit to the configured AOI while respecting the scene's actual footprint.
         try:
@@ -162,10 +183,34 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
         ax.set_xlabel("Longitude (WGS 84)", fontsize=9)
         ax.set_ylabel("Latitude (WGS 84)", fontsize=9)
 
-    # Fixed transect points are scenario locations, not claimed measured shoreline vertices.
+    # Scenario coordinates can fall in a masked part of the scene. Snap only
+    # to a nearby valid RGB pixel (within 2.5 km); never teleport a marker across
+    # the map. This is a cartographic placement aid, not shoreline detection.
     projected = []
     for item in sorted(transects, key=lambda row: row["transect_id"]):
         x, y = to_map.transform(float(item["lon"]), float(item["lat"]))
+        if satellite and rgb_valid is not None and getattr(map_crs, "is_projected", False):
+            try:
+                col_f, row_f = (~image_transform) * (x, y)
+                row0, col0 = int(round(row_f)), int(round(col_f))
+                px_x = abs(float(image_transform.a)) or 1.0
+                px_y = abs(float(image_transform.e)) or 1.0
+                radius_x = min(rgb_valid.shape[1], int(math.ceil(2500 / px_x)))
+                radius_y = min(rgb_valid.shape[0], int(math.ceil(2500 / px_y)))
+                r1, r2 = max(0, row0-radius_y), min(rgb_valid.shape[0], row0+radius_y+1)
+                c1, c2 = max(0, col0-radius_x), min(rgb_valid.shape[1], col0+radius_x+1)
+                if r1 < r2 and c1 < c2:
+                    local = np.argwhere(rgb_valid[r1:r2, c1:c2])
+                    if local.size:
+                        candidates_rc = local + np.array([r1, c1])
+                        xs = image_transform.c + (candidates_rc[:, 1] + .5) * image_transform.a
+                        ys = image_transform.f + (candidates_rc[:, 0] + .5) * image_transform.e
+                        distance = np.hypot(xs - x, ys - y)
+                        nearest = int(np.argmin(distance))
+                        if distance[nearest] <= 2500:
+                            x, y = float(xs[nearest]), float(ys[nearest])
+            except Exception:
+                pass
         projected.append({**item, "x": x, "y": y})
 
     # The transect locations define a local along-coast tangent. Draw a red
@@ -235,7 +280,7 @@ def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
     if year not in (2026, 2027):
         raise ValueError("Forecast year must be 2026 or 2027")
     records, metadata = _fixture_records()
-    signature = hashlib.sha256(FIXTURE.read_bytes() + b"|satellite-overlay-renderer-v3").hexdigest()
+    signature = hashlib.sha256(FIXTURE.read_bytes() + b"|coastal-framing-rgb-coverage-snap-v4").hexdigest()
     year_dir = OUTPUT_DIR / str(year)
     year_dir.mkdir(parents=True, exist_ok=True)
     output, result_path, geojson_path = year_dir / "forecast_map.png", year_dir / "forecast.json", year_dir / "transects.geojson"
