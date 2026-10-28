@@ -4,8 +4,8 @@ import Sidebar, { SECTIONS } from './components/Sidebar';
 import MapView from './components/MapView';
 
 function getRequestedSection() {
-  const requested = new URLSearchParams(window.location.search).get('section') || 'prediction';
-  return SECTIONS.some((section) => section.id === requested) ? requested : 'prediction';
+  const requested = new URLSearchParams(window.location.search).get('section') || 'satellite';
+  return SECTIONS.some((section) => section.id === requested) ? requested : 'satellite';
 }
 
 function XGBoostSatelliteSplit({ onToggleView, colorView }) {
@@ -239,7 +239,7 @@ export default function App() {
     };
   }, []);
 
-  if (activeSection === 'prediction') {
+  if (activeSection === 'satellite' || activeSection === 'prediction') {
     return (
       <div className="app-container">
         <Sidebar
