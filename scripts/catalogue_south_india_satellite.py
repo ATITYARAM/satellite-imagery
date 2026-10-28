@@ -22,6 +22,7 @@ import re
 import sqlite3
 import sys
 import time
+import unicodedata
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -61,7 +62,11 @@ REGION_MEMBERS = {
 
 
 def normalized_name(value: Any) -> str:
-    value = str(value or "").strip().casefold()
+    value = unicodedata.normalize("NFKD", str(value or "").strip().casefold())
+    value = "".join(
+        char for char in value
+        if not unicodedata.combining(char)
+    )
     return re.sub(r"[^a-z0-9]+", " ", value).strip()
 
 

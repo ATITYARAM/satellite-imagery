@@ -1,0 +1,27 @@
+{
+  "boundary_provider": "geoBoundaries",
+  "boundary_endpoint": "https://www.geoboundaries.org/api/current/gbOpen/IND/ADM1/",
+  "release_type": "gbOpen",
+  "country_iso3": "IND",
+  "boundary_level": "ADM1",
+  "boundary_id": "IND-ADM1-1811400",
+  "boundary_name": "India",
+  "boundary_year_represented": "2011",
+  "boundary_source": "DataMeet India community, Election Commission of India",
+  "boundary_license": "Creative Commons Attribution 2.5 India (CC BY 2.5 IN)",
+  "license_detail": "nan",
+  "metadata_retrieved_utc": "2026-10-27T19:23:41.349143+00:00",
+  "download_url": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/IND/ADM1/geoBoundaries-IND-ADM1.geojson",
+  "saved_aoi": "data/satellite/south_india_2010_2025/aoi/southern_zonal_council_members.geojson",
+  "members": [
+    "Andhra Pradesh",
+    "Karnataka",
+    "Kerala",
+    "Tamil Nadu",
+    "Telangana",
+    "Puducherry",
+    "Andaman and Nicobar Islands",
+    "Lakshadweep"
+  ],
+  "note": "The selected regions are full ADM1 geometries. They are not a coastal-only buffer. The boundary metadata and GeoJSON are saved to preserve provenance."
+}

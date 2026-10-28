@@ -6,7 +6,17 @@ __pycache__/
 venv/
 .env
 .env.*
+
+# Generated outputs
 outputs/
 
-# Large downloaded satellite rasters stay outside ordinary Git history.
+# Large downloaded satellite rasters
 data_external/
+
+# Local CoastSat clone
+tools/
+
+# Large generated satellite catalogue files
+data/satellite/**/catalog/scene_catalog.csv
+data/satellite/**/catalog/stac_items.jsonl.gz
+data/satellite/**/catalog/query_log.csv

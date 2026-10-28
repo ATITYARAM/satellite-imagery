@@ -1,0 +1,168 @@
+{
+  "created_utc": "2026-10-28T02:18:53.015234+00:00",
+  "provider": "Microsoft Planetary Computer",
+  "stac_api": "https://planetarycomputer.microsoft.com/api/stac/v1/",
+  "aoi_file": "config/aoi.geojson",
+  "aoi_name": "Thiruvananthapuram Coastal Erosion Study Area",
+  "aoi_bounds_wgs84": [
+    76.88,
+    8.41,
+    76.97,
+    8.51
+  ],
+  "date_range_inclusive": {
+    "start": "2015-01-01",
+    "end": "2025-12-31"
+  },
+  "collections": [
+    "landsat-c2-l2",
+    "sentinel-2-l2a"
+  ],
+  "target_unique_acquisition_dates_per_year": 7,
+  "random_seed": 20261028,
+  "selection_unit": "distinct acquisition date in UTC, not scene count",
+  "selected_date_count": 77,
+  "catalogued_scene_count": 2316,
+  "query_count": 22,
+  "failed_query_count": 0,
+  "annual_coverage": [
+    {
+      "year": 2015,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 73,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2016,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 102,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2017,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 98,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2018,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 133,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2019,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 132,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2020,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 134,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2021,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 131,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2022,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 131,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2023,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 151,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2024,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 143,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    },
+    {
+      "year": 2025,
+      "target_unique_dates": 7,
+      "catalogued_unique_dates": 155,
+      "selected_unique_dates": 7,
+      "shortfall_vs_target": 0,
+      "catalogue_query_failures": 0,
+      "coverage_status": "target_met",
+      "shortfall_is_confirmed": true,
+      "selection_seed": 20261028
+    }
+  ],
+  "outputs": {
+    "candidate_scenes": "catalog/candidate_scenes.csv",
+    "selected_dates": "catalog/selected_dates.csv",
+    "query_log": "catalog/query_log.csv",
+    "annual_coverage": "metadata/annual_coverage.csv"
+  },
+  "imagery_download_requested": false,
+  "imagery_output_dir": null,
+  "rules": [
+    "Only acquisition dates returned by the live STAC catalogue are eligible.",
+    "Sample without replacement from distinct UTC dates, separately for each year.",
+    "If a year has fewer eligible dates than the target, select all available dates and report the shortfall.",
+    "A year with failed catalogue queries is marked catalogue_incomplete; its shortfall is not confirmed.",
+    "One scene is chosen per selected date: lowest reported cloud cover, then Sentinel-2 preference for ties, then stable IDs.",
+    "Cloudy scenes are not filtered out; cloud cover is retained as quality metadata.",
+    "Raster imagery is stored outside ordinary Git history and must not be committed."
+  ]
+}

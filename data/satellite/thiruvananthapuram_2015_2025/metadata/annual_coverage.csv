@@ -1,0 +1,12 @@
+year,target_unique_dates,catalogued_unique_dates,selected_unique_dates,shortfall_vs_target,catalogue_query_failures,coverage_status,shortfall_is_confirmed,selection_seed
+2015,7,73,7,0,0,target_met,True,20261028
+2016,7,102,7,0,0,target_met,True,20261028
+2017,7,98,7,0,0,target_met,True,20261028
+2018,7,133,7,0,0,target_met,True,20261028
+2019,7,132,7,0,0,target_met,True,20261028
+2020,7,134,7,0,0,target_met,True,20261028
+2021,7,131,7,0,0,target_met,True,20261028
+2022,7,131,7,0,0,target_met,True,20261028
+2023,7,151,7,0,0,target_met,True,20261028
+2024,7,143,7,0,0,target_met,True,20261028
+2025,7,155,7,0,0,target_met,True,20261028

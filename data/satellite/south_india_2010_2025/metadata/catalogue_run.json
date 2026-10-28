@@ -1,0 +1,176 @@
+{
+  "catalogue_status": "partial",
+  "generated_utc": "2026-10-27T20:06:53.165208+00:00",
+  "provider": "Microsoft Planetary Computer",
+  "stac_api": "https://planetarycomputer.microsoft.com/api/stac/v1/",
+  "collections": [
+    "landsat-c2-l2",
+    "sentinel-2-l2a"
+  ],
+  "date_range_inclusive": {
+    "start": "2010-01-01T00:00:00Z",
+    "end": "2025-12-31T23:59:59Z"
+  },
+  "region_members": [
+    "Andhra Pradesh",
+    "Karnataka",
+    "Kerala",
+    "Tamil Nadu",
+    "Telangana",
+    "Puducherry",
+    "Andaman and Nicobar Islands",
+    "Lakshadweep"
+  ],
+  "scene_product_count": 28829,
+  "scene_products_by_collection": {
+    "landsat-c2-l2": 7725,
+    "sentinel-2-l2a": 21104
+  },
+  "scene_products_by_region_member_intersect": {
+    "Puducherry": 2734,
+    "Kerala": 12881,
+    "Lakshadweep": 6247,
+    "Telangana": 7458
+  },
+  "queries_by_status": {
+    "complete": 85,
+    "failed": 171
+  },
+  "yearly_coverage": {
+    "2010": {
+      "scene_products": 139,
+      "unique_acquisition_dates": 76,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 139
+      }
+    },
+    "2011": {
+      "scene_products": 164,
+      "unique_acquisition_dates": 78,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 164
+      }
+    },
+    "2012": {
+      "scene_products": 142,
+      "unique_acquisition_dates": 72,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 142
+      }
+    },
+    "2013": {
+      "scene_products": 335,
+      "unique_acquisition_dates": 159,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 335
+      }
+    },
+    "2014": {
+      "scene_products": 602,
+      "unique_acquisition_dates": 264,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 602
+      }
+    },
+    "2015": {
+      "scene_products": 712,
+      "unique_acquisition_dates": 272,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 631,
+        "sentinel-2-l2a": 81
+      }
+    },
+    "2016": {
+      "scene_products": 1311,
+      "unique_acquisition_dates": 303,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 664,
+        "sentinel-2-l2a": 647
+      }
+    },
+    "2017": {
+      "scene_products": 894,
+      "unique_acquisition_dates": 292,
+      "scene_products_by_collection": {
+        "sentinel-2-l2a": 237,
+        "landsat-c2-l2": 657
+      }
+    },
+    "2018": {
+      "scene_products": 1794,
+      "unique_acquisition_dates": 258,
+      "scene_products_by_collection": {
+        "sentinel-2-l2a": 1314,
+        "landsat-c2-l2": 480
+      }
+    },
+    "2019": {
+      "scene_products": 4921,
+      "unique_acquisition_dates": 293,
+      "scene_products_by_collection": {
+        "sentinel-2-l2a": 4448,
+        "landsat-c2-l2": 473
+      }
+    },
+    "2020": {
+      "scene_products": 2522,
+      "unique_acquisition_dates": 291,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 1139,
+        "sentinel-2-l2a": 1383
+      }
+    },
+    "2021": {
+      "scene_products": 2225,
+      "unique_acquisition_dates": 284,
+      "scene_products_by_collection": {
+        "sentinel-2-l2a": 1721,
+        "landsat-c2-l2": 504
+      }
+    },
+    "2022": {
+      "scene_products": 3083,
+      "unique_acquisition_dates": 291,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 572,
+        "sentinel-2-l2a": 2511
+      }
+    },
+    "2023": {
+      "scene_products": 1437,
+      "unique_acquisition_dates": 197,
+      "scene_products_by_collection": {
+        "sentinel-2-l2a": 1213,
+        "landsat-c2-l2": 224
+      }
+    },
+    "2024": {
+      "scene_products": 1382,
+      "unique_acquisition_dates": 254,
+      "scene_products_by_collection": {
+        "sentinel-2-l2a": 1165,
+        "landsat-c2-l2": 217
+      }
+    },
+    "2025": {
+      "scene_products": 7166,
+      "unique_acquisition_dates": 354,
+      "scene_products_by_collection": {
+        "landsat-c2-l2": 782,
+        "sentinel-2-l2a": 6384
+      }
+    }
+  },
+  "outputs": {
+    "scene_catalog_csv": "data/satellite/south_india_2010_2025/catalog/scene_catalog.csv",
+    "full_stac_items_jsonl_gzip": "data/satellite/south_india_2010_2025/catalog/stac_items.jsonl.gz",
+    "query_log_csv": "data/satellite/south_india_2010_2025/catalog/query_log.csv"
+  },
+  "scientific_notes": [
+    "Catalogue includes all returned matching scene products, including cloudy scenes.",
+    "The inventory is not a count of clear or scientifically usable dates.",
+    "The 50-date/year sampling target is not applied during discovery.",
+    "Different sensors and overlapping scenes are retained as separate products.",
+    "No raster imagery has been downloaded by this catalogue script."
+  ]
+}
