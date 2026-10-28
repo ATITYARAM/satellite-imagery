@@ -7,3 +7,6 @@ venv/
 .env
 .env.*
 outputs/
+
+# Large downloaded satellite rasters stay outside ordinary Git history.
+data_external/
