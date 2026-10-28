@@ -300,7 +300,7 @@ function ResultView() {
                   <aside className="forecast-summary">
                     <span>MODEL STATUS</span><strong>Real ML forecast unavailable</strong>
                     <p>{forecast?.model?.xgboost_regression}</p>
-                    <dl><div><dt>Illustrative mean displacement</dt><dd>{Number(forecast?.summary?.mean_displacement_m || 0).toFixed(1)} m</dd></div><div><dt>Illustrative mean rate</dt><dd>{Number(forecast?.summary?.mean_retreat_rate_m_yr || 0).toFixed(2)} m/year</dd></div><div><dt>Fixture transects</dt><dd>{forecast?.summary?.transect_count || 0}</dd></div></dl>
+                    <dl><div><dt>Illustrative mean displacement</dt><dd>{Number(forecast?.summary?.mean_displacement_m || 0).toFixed(1)} m</dd></div><div><dt>Illustrative mean rate</dt><dd>{Number(forecast?.summary?.mean_retreat_rate_m_yr || 0).toFixed(2)} m/year</dd></div><div><dt>Scenario transects</dt><dd>{forecast?.summary?.transect_count || 0}</dd></div></dl>
                     <p className="forecast-note">{forecast?.validation?.reason}</p>
                   </aside>
                 </div>}
