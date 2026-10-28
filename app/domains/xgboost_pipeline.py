@@ -258,7 +258,7 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
     if len(rows) < 2:
         raise FileNotFoundError("No usable complete six-band satellite scenes are available in the archive.")
     domain_coverage, domain_values = _load_synthetic_domains()
-    signature = _input_signature(rows, unavailable)
+    signature = _input_signature(rows, unavailable) + "|satellite-scenario-overlay-v1"
     if not force and RESULT_JSON.exists() and RESULT_IMAGE.exists():
         try:
             cached = json.loads(RESULT_JSON.read_text(encoding="utf-8"))
@@ -345,78 +345,166 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
 
 
 def _write_result_image(probability: np.ndarray, reference: dict[str, Any], output_path: Path) -> None:
-    """Render an annotated geospatial proxy map from the actual analysis grid.
+    """Render a satellite RGB basemap with separate 2026/2027 scenario overlays.
 
-    The AOI is the only boundary drawn here. No shoreline is inferred: this
-    project has no authoritative shoreline geometry in the result pipeline.
+    The underlying XGBoost spectral-change calculations and result JSON are
+    preserved. Scenario overlays are explicitly illustrative until real
+    shoreline detections and landward normals are available.
     """
+    import csv
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.colors import BoundaryNorm, ListedColormap
-    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+    import rasterio
+    from rasterio.enums import Resampling
+    from rasterio.warp import transform_bounds
     from pyproj import Transformer
-    from rasterio.transform import array_bounds
-    from rasterio.warp import transform_geom
-
-    height, width = probability.shape
-    west, south, east, north = array_bounds(height, width, reference["transform"])
-    finite = np.isfinite(probability)
-    if not finite.any():
-        raise RuntimeError("Cannot render result map: proxy raster has no finite pixels")
-
-    # Fixed score classes make maps comparable between runs; masked nodata is
-    # transparent, rather than being painted as an apparent low-score zone.
-    bounds = [0.0, 0.25, 0.50, 0.75, 1.000001]
-    colors = ["#2c7bb6", "#00a6ca", "#fdae61", "#d7191c"]
-    cmap = ListedColormap(colors, name="change_proxy_classes")
-    cmap.set_bad((0, 0, 0, 0))
-    proxy = np.ma.masked_invalid(np.clip(probability, 0.0, 1.0))
-    norm = BoundaryNorm(bounds, cmap.N)
 
     aoi = json.loads((ROOT / "config" / "aoi.geojson").read_text(encoding="utf-8"))
     geometry = aoi["features"][0]["geometry"]
-    projected = transform_geom("EPSG:4326", reference["crs"], geometry, precision=3)
-    ring = np.asarray(projected["coordinates"][0])
+    ring_geo = np.asarray(geometry["coordinates"][0], dtype=float)
+    west_lon, south_lat = ring_geo.min(axis=0)
+    east_lon, north_lat = ring_geo.max(axis=0)
 
-    fig, ax = plt.subplots(figsize=(10.8, 8.2), dpi=160, facecolor="white")
-    ax.set_facecolor("#eef3f5")
-    image = ax.imshow(proxy, extent=(west, east, south, north), origin="upper", cmap=cmap, norm=norm, interpolation="nearest")
-    ax.plot(ring[:, 0], ring[:, 1], color="#172554", linewidth=1.5, linestyle="--", label="Study-area boundary (AOI)")
-    ax.text(west + (east - west) * .018, north - (north - south) * .025,
-            "Thiruvananthapuram Coast, Kerala\nUnvalidated spectral-change proxy",
-            ha="left", va="top", fontsize=10, fontweight="bold", color="#0f172a",
-            bbox={"boxstyle": "round,pad=.35", "facecolor": "white", "edgecolor": "#94a3b8", "alpha": .94})
+    archive = ROOT / "data_external" / "thiruvananthapuram_2015_2025"
+    rows = []
+    if CATALOG.is_file():
+        with CATALOG.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+    scene = None
+    for row in sorted(rows, key=lambda r: r.get("acquisition_datetime_utc", ""), reverse=True):
+        folder = archive / row["year"] / row["acquisition_date_utc"] / row["collection_id"] / row["item_id"]
+        if all((folder / f"{band}.tif").is_file() for band in ("red", "green", "blue")):
+            try:
+                with rasterio.open(folder / "red.tif") as src:
+                    if src.crs and src.width > 1 and src.height > 1:
+                        scene = (folder, row["acquisition_date_utc"], src.crs, src.bounds)
+                        break
+            except Exception:
+                continue
 
-    # Geographic labels are transformed from actual UTM tick positions.
-    transformer = Transformer.from_crs(reference["crs"], "EPSG:4326", always_xy=True)
-    xticks = np.linspace(west, east, 5)
-    yticks = np.linspace(south, north, 5)
-    ax.set_xticks(xticks); ax.set_yticks(yticks)
-    ax.set_xticklabels([f"{transformer.transform(x, south)[0]:.3f}°E" for x in xticks], fontsize=8)
-    ax.set_yticklabels([f"{transformer.transform(west, y)[1]:.3f}°N" for y in yticks], fontsize=8)
-    ax.set_xlabel("Longitude (WGS 84)", fontsize=9)
-    ax.set_ylabel("Latitude (WGS 84)", fontsize=9)
-    ax.grid(True, color="#475569", alpha=.22, linewidth=.55)
-    ax.set_title("XGBoost spectral-change proxy zones (not measured erosion)", fontsize=13, fontweight="bold", pad=12)
+    fig, ax = plt.subplots(figsize=(12, 9), dpi=170, facecolor="#f8fafc")
+    fig.subplots_adjust(left=.09, right=.97, top=.89, bottom=.12)
+    ax.set_facecolor("#dbeafe")
+    if scene:
+        folder, scene_date, scene_crs, bounds = scene
+        rgb = []
+        alpha = None
+        for band in ("red", "green", "blue"):
+            with rasterio.open(folder / f"{band}.tif") as src:
+                shape = (max(1, min(1400, src.height)), max(1, min(1400, src.width)))
+                arr = src.read(1, out_shape=shape, resampling=Resampling.bilinear).astype("float32")
+                valid = np.isfinite(arr)
+                if src.nodata is not None:
+                    valid &= arr != src.nodata
+                valid &= arr > 0
+                alpha = valid if alpha is None else alpha & valid
+                vals = arr[valid]
+                if vals.size:
+                    lo, hi = np.percentile(vals, [2, 98])
+                    arr = np.clip((arr - lo) / max(float(hi - lo), 1e-6), 0, 1)
+                else:
+                    arr[:] = 0
+                rgb.append(arr)
+        # Ensure RGB channels share one shape, even if a malformed archive scene differs.
+        common_h = min(channel.shape[0] for channel in rgb)
+        common_w = min(channel.shape[1] for channel in rgb)
+        image = np.dstack([channel[:common_h, :common_w] for channel in rgb])
+        if alpha is not None:
+            image = np.dstack([image, alpha[:common_h, :common_w].astype("float32")])
+        extent = (bounds.left, bounds.right, bounds.bottom, bounds.top)
+        ax.imshow(image, extent=extent, origin="upper", interpolation="bilinear", zorder=0)
+        try:
+            projected_aoi = transform_bounds("EPSG:4326", scene_crs, west_lon, south_lat, east_lon, north_lat, densify_pts=21)
+            ax.set_xlim(max(projected_aoi[0], extent[0]), min(projected_aoi[2], extent[1]))
+            ax.set_ylim(max(projected_aoi[1], extent[2]), min(projected_aoi[3], extent[3]))
+        except Exception:
+            ax.set_xlim(extent[0], extent[1]); ax.set_ylim(extent[2], extent[3])
+        transformer = Transformer.from_crs("EPSG:4326", scene_crs, always_xy=True)
+        reverse = Transformer.from_crs(scene_crs, "EPSG:4326", always_xy=True)
+        ax.set_xlabel(f"Map easting ({scene_crs})", fontsize=9)
+        ax.set_ylabel("Map northing (metres)", fontsize=9)
+    else:
+        # Never manufacture a satellite background when the RGB archive is absent.
+        scene_date, scene_crs = None, None
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+        reverse = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+        ax.fill(ring_geo[:, 0], ring_geo[:, 1], color="#f8fafc", zorder=0)
+        ax.plot(ring_geo[:, 0], ring_geo[:, 1], color="#334155", linewidth=1.6, zorder=1)
+        ax.set_xlim(west_lon, east_lon); ax.set_ylim(south_lat, north_lat)
+        ax.set_xlabel("Longitude (WGS 84)", fontsize=9)
+        ax.set_ylabel("Latitude (WGS 84)", fontsize=9)
 
-    # A north arrow and metric scale bar use the real projected grid units.
-    dx, dy = east - west, north - south
-    arrow_x, arrow_y = east - dx * .055, south + dy * .12
-    ax.annotate("N", xy=(arrow_x, arrow_y + dy * .13), xytext=(arrow_x, arrow_y), ha="center", va="center", fontsize=11, fontweight="bold",
-                arrowprops={"arrowstyle": "-|>", "color": "#111827", "lw": 1.5})
-    scale_m = 2000 if dx >= 7000 else 1000
-    sx, sy = west + dx * .055, south + dy * .075
-    ax.plot([sx, sx + scale_m], [sy, sy], color="#111827", linewidth=4, solid_capstyle="butt")
-    ax.plot([sx, sx], [sy - dy*.012, sy + dy*.012], color="#111827", linewidth=1)
-    ax.plot([sx + scale_m, sx + scale_m], [sy - dy*.012, sy + dy*.012], color="#111827", linewidth=1)
-    ax.text(sx + scale_m / 2, sy + dy * .025, f"{scale_m / 1000:g} km", ha="center", va="bottom", fontsize=8, fontweight="bold")
+    # Read the same deterministic scenario pipeline used by the forecast panel.
+    try:
+        from app.domains.forecast_pipeline import run_forecast
+        forecast_2026 = run_forecast(2026)
+        forecast_2027 = run_forecast(2027)
+        years = [(2026, forecast_2026.get("transects", []), "#ef4444", "-"),
+                 (2027, forecast_2027.get("transects", []), "#facc15", "--")]
+    except Exception:
+        years = []
 
-    handles = [Patch(facecolor=color, edgecolor="none", label=label) for color, label in zip(colors, ["Low (0.00–0.25)", "Moderate (0.25–0.50)", "High (0.50–0.75)", "Very high (0.75–1.00)"])]
-    handles += [Patch(facecolor="#eef3f5", edgecolor="#94a3b8", label="No data / masked"), plt.Line2D([], [], color="#172554", linestyle="--", label="Study-area boundary")]
-    legend = ax.legend(handles=handles, title="Change-proxy score", loc="lower right", fontsize=8, title_fontsize=9, frameon=True, framealpha=.96)
-    legend.get_frame().set_edgecolor("#94a3b8")
-    fig.text(.5, .012, "Zones show a model-derived spectral-change proxy. They are not validated erosion probabilities or shoreline measurements.", ha="center", fontsize=8, color="#334155")
-    fig.tight_layout(rect=(0, .035, 1, 1))
-    fig.savefig(output_path, format="png", transparent=False, facecolor="white")
+    # Convert scenario points to the basemap CRS. Draw small metre-length
+    # displacement ticks; direction is illustrative because no surveyed
+    # shoreline normal is currently available in the source records.
+    for year, transects, colour, linestyle in years:
+        projected = []
+        for item in sorted(transects, key=lambda row: row.get("transect_id", "")):
+            x, y = transformer.transform(float(item["lon"]), float(item["lat"]))
+            projected.append({**item, "x": x, "y": y})
+        for i, item in enumerate(projected):
+            prev_item = projected[max(0, i - 1)]
+            next_item = projected[min(len(projected) - 1, i + 1)]
+            tx = next_item["x"] - prev_item["x"]
+            ty = next_item["y"] - prev_item["y"]
+            norm = math.hypot(tx, ty) or 1.0
+            nx, ny = -ty / norm, tx / norm
+            metres = abs(float(item.get("forecast_displacement_m", 0.0)))
+            # Prevent scenario fixtures from drawing oversized, implausible lines.
+            metres = min(metres, 10.0)
+            x0, y0 = item["x"], item["y"]
+            x1, y1 = x0 + nx * metres, y0 + ny * metres
+            ax.plot([x0, x1], [y0, y1], color=colour, linewidth=2.7 if year == 2026 else 2.2,
+                    linestyle=linestyle, solid_capstyle="round", zorder=5)
+            ax.scatter([x0], [y0], s=20, color="white", edgecolor=colour, linewidth=1.2, zorder=6)
+            if year == 2026:
+                ax.annotate(f'{item["transect_id"]}  {metres:.1f} m',
+                            (x1, y1), xytext=(5, 5), textcoords="offset points",
+                            fontsize=7.5, color="#991b1b", fontweight="bold", zorder=7,
+                            bbox={"boxstyle":"round,pad=.2","facecolor":"white","edgecolor":"#fecaca","alpha":.94})
+
+    xmin, xmax = ax.get_xlim(); ymin, ymax = ax.get_ylim()
+    if scene and scene_crs and getattr(scene_crs, "is_projected", False):
+        bar_x, bar_y = xmin + (xmax-xmin)*.05, ymin + (ymax-ymin)*.07
+        ax.plot([bar_x, bar_x+2000], [bar_y, bar_y], color="white", linewidth=5, zorder=8)
+        ax.plot([bar_x, bar_x+2000], [bar_y, bar_y], color="#111827", linewidth=2.2, zorder=9)
+        ax.text(bar_x+1000, bar_y+(ymax-ymin)*.012, "2 km", ha="center", va="bottom",
+                fontsize=8, fontweight="bold", color="#111827",
+                bbox={"facecolor":"white","edgecolor":"none","alpha":.85,"pad":2}, zorder=9)
+        ax.annotate("N", xy=(xmax-(xmax-xmin)*.07, ymax-(ymax-ymin)*.08),
+                    xytext=(xmax-(xmax-xmin)*.07, ymax-(ymax-ymin)*.16),
+                    ha="center", fontsize=10, fontweight="bold",
+                    arrowprops={"arrowstyle":"-|>","color":"white","lw":2}, zorder=9)
+        ax.text(.01, .015, f"Satellite acquisition: {scene_date}",
+                transform=ax.transAxes, fontsize=8, color="white", va="bottom",
+                bbox={"facecolor":"#0f172a","edgecolor":"none","alpha":.75,"pad":3}, zorder=10)
+
+    handles = [
+        Line2D([], [], color="#ef4444", linewidth=2.7, linestyle="-", label="2026 scenario displacement"),
+        Line2D([], [], color="#facc15", linewidth=2.2, linestyle="--", label="2027 scenario displacement"),
+    ]
+    ax.legend(handles=handles, loc="upper right", frameon=True, framealpha=.96,
+              facecolor="white", edgecolor="#cbd5e1", fontsize=8)
+    ax.set_title("Thiruvananthapuram Coast — Satellite Map & Retreat Scenarios",
+                 loc="left", fontsize=14, fontweight="bold", color="#0f172a", pad=15)
+    subtitle = "Coloured lines show illustrative displacement in metres; direction is not surveyed"
+    if not scene:
+        subtitle += " • RGB satellite scene unavailable locally; boundary-only fallback shown"
+    ax.text(0, 1.015, subtitle, transform=ax.transAxes, fontsize=8.5, color="#475569", va="bottom")
+    fig.text(.09, .035,
+             "Scenario overlay is not a validated erosion forecast. The underlying XGBoost score remains a spectral-change proxy, not measured erosion.",
+             fontsize=8, color="#475569", ha="left", va="bottom", wrap=True)
+    fig.savefig(output_path, format="png", transparent=False, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
