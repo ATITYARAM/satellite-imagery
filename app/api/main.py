@@ -481,10 +481,16 @@ def shoreline_data():
 
 
 def _run_xgboost_response(force: bool = False):
-    if not XGBOOST_RUN_LOCK.acquire(blocking=False):
-        raise HTTPException(status_code=409, detail='An XGBoost run is already in progress. Please retry shortly.')
+    # The result page can request metadata and the PNG at the same time, and
+    # React may issue both GET /result and POST /run on mount. Queue duplicate
+    # requests instead of returning 409 while the first expensive model run is
+    # still working. Only the request that acquires the lock immediately may
+    # force a fresh run; queued requests reuse the cache created by that run.
+    acquired_immediately = XGBOOST_RUN_LOCK.acquire(blocking=False)
+    if not acquired_immediately:
+        XGBOOST_RUN_LOCK.acquire()
     try:
-        return run_xgboost(force=force)
+        return run_xgboost(force=bool(force and acquired_immediately))
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
