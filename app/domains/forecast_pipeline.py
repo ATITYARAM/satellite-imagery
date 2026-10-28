@@ -20,7 +20,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "domains/shoreline_history/data/synthetic/shoreline_observations_2015_2025.json"
 REAL_SHORELINES = ROOT / "data/shoreline_history/thiruvananthapuram/shoreline_lines.geojson"
-OUTPUT_DIR = ROOT / "outputs/forecasts"
+OUTPUT_DIR = ROOT / "output" / "forecasts"
 AOI = ROOT / "config/aoi.geojson"
 
 
