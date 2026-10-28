@@ -109,7 +109,7 @@ function ResultView() {
         <div>
           <div className="result-eyebrow"><BarChart3 size={16} /> MODEL OUTPUT</div>
           <h1>XGBoost Result</h1>
-          <p>2016 → 2026 paired satellite-image prototype using the actual Landsat band data.</p>
+          <p>2015 → 2025 coastal change analysis using Landsat observations at five-year intervals (2015, 2020, 2025).</p>
         </div>
         <button type="button" className="result-refresh" onClick={() => runModel(true)} disabled={loading}>
           <RefreshCw size={16} className={loading ? 'spin' : ''} />
@@ -120,7 +120,7 @@ function ResultView() {
       {loading ? (
         <section className="result-loading">
           <RefreshCw size={26} className="spin" />
-          <strong>Running XGBoost on the two satellite observations…</strong>
+          <strong>Running XGBoost on the 2015, 2020 and 2025 satellite observations…</strong>
           <span>Building paired spectral features and generating the output layer.</span>
         </section>
       ) : error ? (
@@ -129,7 +129,7 @@ function ResultView() {
           <div>
             <strong>XGBoost result could not be generated</strong>
             <span>{error}</span>
-            <small>Make sure the FastAPI backend is running and the 2016 / 2026 band files are available.</small>
+            <small>Make sure the FastAPI backend is running and the 2015, 2020 and 2025 band files are available.</small>
           </div>
         </section>
       ) : (
@@ -146,7 +146,7 @@ function ResultView() {
               <div className="result-image-wrap">
                 <img
                   src={result?.image_url ? result.image_url + '?v=' + result.run_id : ''}
-                  alt="XGBoost erosion-like change score generated from 2016 and 2026 satellite imagery"
+                  alt="XGBoost coastal change score generated from 2015, 2020 and 2025 satellite imagery"
                 />
                 <div className="result-legend">
                   <span>Low</span>
@@ -180,7 +180,7 @@ function ResultView() {
             <article className="result-panel">
               <div className="result-panel-title"><Target size={17} /> MODEL SETUP</div>
               <div className="result-detail-grid">
-                <div><span>INPUT YEARS</span><b>2016 + 2026</b></div>
+                <div><span>INPUT YEARS</span><b>2015 + 2020 + 2025</b></div>
                 <div><span>ALGORITHM</span><b>XGBoost gradient boosting</b></div>
                 <div><span>TRAINING TARGET</span><b>Paired-image pseudo-label</b></div>
                 <div><span>OUTPUT</span><b>Probability of erosion-like change</b></div>
@@ -202,7 +202,7 @@ function ResultView() {
           </section>
 
           <div className="result-note">
-            Prototype note: with only two dated images and no erosion ground-truth labels yet, the current XGBoost target is a paired-image change proxy. It is an actual XGBoost run, but it is not the final five-domain validated erosion model.
+            Prototype note: the model uses 2015, 2020 and 2025 imagery, including five-year interval features. Without erosion ground-truth labels, its output is a spectral-change proxy, not a validated erosion measurement or the final five-domain model.
           </div>
         </>
       )}
