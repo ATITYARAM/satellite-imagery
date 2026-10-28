@@ -10,41 +10,68 @@ function getRequestedSection() {
 
 function SatelliteLatestView() {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     fetch('/satellite/data')
-      .then((response) => {
-        if (!response.ok) throw new Error('Satellite data unavailable');
-        return response.json();
+      .then(async (response) => {
+        const contentType = response.headers.get('content-type') || '';
+        const body = await response.text();
+        if (!response.ok) {
+          throw new Error(`Satellite API returned HTTP ${response.status}: ${body || response.statusText}`);
+        }
+        if (!contentType.includes('application/json')) {
+          throw new Error('Satellite API returned a non-JSON response. Start the project with npm run dev so Vite can proxy requests to FastAPI.');
+        }
+        try {
+          return JSON.parse(body);
+        } catch {
+          throw new Error('Satellite API returned invalid JSON. Start the project with npm run dev and check the FastAPI server.');
+        }
       })
       .then((value) => {
         if (!cancelled) setData(value);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Unable to load satellite data');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
   }, []);
 
   const latest = data?.years?.['2025'];
+  const acquisitionDate = latest?.acquisition_datetime
+    ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(latest.acquisition_datetime))
+    : null;
 
   return (
     <main className="xgboost-satellite-split satellite-latest-view" aria-label="Latest satellite imagery">
-      {latest?.available ? (
+      {loading ? (
+        <section className="split-side satellite-latest-image">
+          <div className="satellite-unavailable">
+            <strong>Loading latest 2025 satellite imagery…</strong>
+            <span>Checking the cached Landsat scene for the configured Thiruvananthapuram study area.</span>
+          </div>
+        </section>
+      ) : latest?.available ? (
         <section className="split-side satellite-latest-image" style={{ gridColumn: "1 / -1" }}>
           <img src={latest.color_preview_url} alt="Latest 2025 satellite imagery of the study area" />
           <div className="satellite-year-label">
             <strong>2025</strong>
-            <span>Latest available satellite observation</span>
+            <span>{acquisitionDate || 'Acquisition date unavailable'} · {latest.source || 'Source unavailable'}</span>
+            <span>{latest.platform || 'Platform unavailable'} · {latest.scene_id || 'Scene ID unavailable'} · {latest.cloud_cover_percent ?? 'Unknown'}% cloud cover</span>
           </div>
         </section>
       ) : (
         <section className="split-side satellite-latest-image">
           <div className="satellite-unavailable">
-            <strong>{error ? 'Satellite data could not be loaded' : '2025 imagery not loaded'}</strong>
-            <span>{error || 'Check the backend and confirm the 2025 imagery bands and metadata are present for this study area.'}</span>
+            <strong>{error ? 'Satellite data could not be loaded' : '2025 imagery is unavailable'}</strong>
+            <span>{error || latest?.unavailable_reason || 'The 2025 imagery metadata or required bands are missing.'}</span>
+            <span>Recovery: run <code>.venv/bin/python scripts/download_landsat_aoi.py --year 2025</code>, then refresh.</span>
           </div>
         </section>
       )}
@@ -53,41 +80,100 @@ function SatelliteLatestView() {
 }
 
 function XGBoostSatelliteSplit() {
-  const [imageErrors, setImageErrors] = useState({});
+  const [panels, setPanels] = useState({
+    2015: { loading: true, imageLoading: true },
+    2025: { loading: true, imageLoading: true },
+  });
+  const [comparisonMode, setComparisonMode] = useState('side-by-side');
+  const [swipePosition, setSwipePosition] = useState(50);
 
-  const imageUrl = (year) => `/satellite/archive-preview/${year}.png`;
-  const recordImageError = async (year) => {
-    try {
-      const response = await fetch(imageUrl(year));
-      const body = await response.json();
-      setImageErrors((old) => ({ ...old, [year]: body.detail || 'Image request failed.' }));
-    } catch {
-      setImageErrors((old) => ({ ...old, [year]: 'Could not load image from the API. Check that the backend is running.' }));
-    }
-  };
+  useEffect(() => {
+    let cancelled = false;
+    [2015, 2025].forEach((year) => {
+      fetch(`/satellite/archive-data/${year}`)
+        .then(async (response) => {
+          const body = await response.text();
+          if (!response.ok) throw new Error(`HTTP ${response.status}: ${body}`);
+          return JSON.parse(body);
+        })
+        .then((metadata) => {
+          if (!cancelled) setPanels((old) => ({ ...old, [year]: { loading: false, imageLoading: true, metadata } }));
+        })
+        .catch((err) => {
+          if (!cancelled) setPanels((old) => ({ ...old, [year]: { loading: false, error: err.message || 'Could not load scene metadata.' } }));
+        });
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const formatDate = (value) => new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(value));
+  const bothReady = [2015, 2025].every((year) => panels[year].metadata && !panels[year].error);
+  const yearSpan = bothReady
+    ? ((new Date(panels[2025].metadata.acquisition_datetime) - new Date(panels[2015].metadata.acquisition_datetime)) / 31557600000).toFixed(1)
+    : '—';
+  const limitation = bothReady && panels[2025].metadata.selection_note
+    ? `Coverage substitution: ${panels[2025].metadata.selection_note} Original last-selected scene ${panels[2025].metadata.original_last_selected_item_id} had ${panels[2025].metadata.original_last_selected_coverage_percent}% valid RGB coverage. Reported cloud cover for the displayed 2025 scene is ${panels[2025].metadata.cloud_cover_percent}%; visible clouds further limit interpretation.`
+    : 'Transparent areas are nodata, not water or land. Clouds and scene conditions can limit visual interpretation.';
+
+  const image = (year, className = '') => (
+    <img
+      className={className}
+      src={panels[year].metadata.image_url}
+      alt={`${year} satellite image for the Thiruvananthapuram study area`}
+      onLoad={() => setPanels((old) => ({ ...old, [year]: { ...old[year], imageLoading: false } }))}
+      onError={() => setPanels((old) => ({ ...old, [year]: { ...old[year], imageLoading: false, error: 'The image endpoint failed. Confirm the RGB bands are available and FastAPI is running.' } }))}
+    />
+  );
 
   return (
-    <main className="xgboost-satellite-split" aria-label="First 2015 and last 2025 satellite imagery">
-      {[2015, 2025].map((year) => (
-        <section className="split-side" key={year}>
-          <div className="archive-image-heading">
-            <strong>{year}</strong>
-            <span>{year === 2015 ? 'First selected observation · 19 Apr 2015' : 'Last selected observation · 6 Sep 2025'}</span>
-          </div>
-          {imageErrors[year] ? (
-            <div className="satellite-unavailable">
-              <strong>{year} satellite image could not load</strong>
-              <span>{imageErrors[year]}</span>
-            </div>
-          ) : (
-            <img
-              src={imageUrl(year)}
-              alt={`${year} satellite image for the study area`}
-              onError={() => recordImageError(year)}
-            />
-          )}
+    <main className="comparison-page" aria-label="2015 and 2025 satellite comparison">
+      <header className="comparison-header">
+        <div>
+          <span className="comparison-eyebrow">XGBOOST INPUT COMPARISON</span>
+          <h1>Satellite observations</h1>
+          <p>Compare the first selected 2015 observation with the coverage-qualified 2025 observation. This is a visual input review, not a shoreline-erosion measurement.</p>
+        </div>
+        <div className="comparison-controls" aria-label="Comparison view">
+          <button type="button" className={comparisonMode === 'side-by-side' ? 'active' : ''} onClick={() => setComparisonMode('side-by-side')}>Side-by-side</button>
+          <button type="button" className={comparisonMode === 'swipe' ? 'active' : ''} onClick={() => setComparisonMode('swipe')} disabled={!bothReady}>Swipe comparison</button>
+        </div>
+      </header>
+
+      {bothReady && (
+        <section className="comparison-info" aria-label="Comparison information">
+          {[2015, 2025].map((year) => <div key={year}><b>{year}</b><span>{formatDate(panels[year].metadata.acquisition_datetime)}</span><code>{panels[year].metadata.item_id}</code><small>{panels[year].metadata.valid_pixel_coverage_percent}% valid RGB</small></div>)}
+          <div><b>INTERVAL</b><span>{yearSpan} years</span><small>Common RGB scaling; nodata is transparent.</small></div>
+          <p role="note">{limitation}</p>
         </section>
-      ))}
+      )}
+
+      {comparisonMode === 'swipe' && bothReady ? (
+        <section className="swipe-comparison" aria-label="Swipe satellite comparison">
+          <div className="swipe-stage">
+            {image(2015, 'swipe-image')}
+            <div className="swipe-overlay" style={{ clipPath: `inset(0 ${100 - swipePosition}% 0 0)` }}>{image(2025, 'swipe-image')}</div>
+            <div className="swipe-divider" style={{ left: `${swipePosition}%` }} aria-hidden="true"><span>↔</span></div>
+            <span className="swipe-label swipe-label-left">2025</span><span className="swipe-label swipe-label-right">2015</span>
+          </div>
+          <label className="swipe-range">Reveal 2025 imagery
+            <input type="range" min="0" max="100" value={swipePosition} onChange={(event) => setSwipePosition(Number(event.target.value))} aria-valuetext={`${swipePosition}% 2025 imagery revealed`} />
+          </label>
+          <p>Drag the divider or use the arrow keys on the slider. Both dates use identical image bounds and display scaling.</p>
+        </section>
+      ) : (
+        <section className="comparison-panels" aria-label="Side-by-side satellite imagery">
+          {[2015, 2025].map((year) => (
+            <article className="comparison-panel" key={year}>
+              <header><strong>{year}</strong><span>{panels[year].metadata ? `${year === 2015 ? 'First' : 'Coverage-qualified'} selected observation · ${formatDate(panels[year].metadata.acquisition_datetime)}` : 'Loading selected observation…'}</span></header>
+              {panels[year].loading ? <div className="satellite-unavailable"><strong>Loading {year} satellite image…</strong><span>Checking the cached selected scene.</span></div>
+                : panels[year].error ? <div className="satellite-unavailable"><strong>{year} satellite image could not load</strong><span>{panels[year].error}</span></div>
+                  : <div className="comparison-image-frame">{image(year)}{panels[year].imageLoading && <div className="archive-image-loading">Loading image…</div>}<span className="nodata-key">▧ Transparent = nodata</span></div>}
+              {panels[year].metadata && <footer><span>{panels[year].metadata.platform} · {panels[year].metadata.collection}</span><code>{panels[year].metadata.item_id}</code><span>{panels[year].metadata.valid_pixel_coverage_percent}% valid RGB coverage</span></footer>}
+            </article>
+          ))}
+        </section>
+      )}
+      <aside className="comparison-legend"><b>How to read this</b><span>Natural-color Landsat RGB is stretched with shared 2nd–98th percentile ranges calculated from valid pixels in both dates. Transparent/neutral regions are unavailable data; visual differences are not measured coastal erosion.</span></aside>
     </main>
   );
 }

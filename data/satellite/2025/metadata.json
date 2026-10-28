@@ -1,0 +1,80 @@
+{
+  "year": 2025,
+  "scene_id": "LC09_L2SP_144054_20251031_02_T1",
+  "platform": "landsat-9",
+  "acquisition_datetime": "2025-10-31T05:12:20.699343+00:00",
+  "cloud_cover_percent": 0.2,
+  "collection": "landsat-c2-l2",
+  "source": "Microsoft Planetary Computer",
+  "aoi_file": "config/aoi.geojson",
+  "aoi_name": "Thiruvananthapuram Coastal Erosion Study Area",
+  "aoi_bounds": [
+    76.88,
+    8.41,
+    76.97,
+    8.51
+  ],
+  "bands": {
+    "B2_blue": {
+      "asset": "blue",
+      "path": "data/satellite/2025/B2_blue.tif",
+      "dtype": "uint16",
+      "width": 333,
+      "height": 371,
+      "crs": "EPSG:32643",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B3_green": {
+      "asset": "green",
+      "path": "data/satellite/2025/B3_green.tif",
+      "dtype": "uint16",
+      "width": 333,
+      "height": 371,
+      "crs": "EPSG:32643",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B4_red": {
+      "asset": "red",
+      "path": "data/satellite/2025/B4_red.tif",
+      "dtype": "uint16",
+      "width": 333,
+      "height": 371,
+      "crs": "EPSG:32643",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B5_nir": {
+      "asset": "nir08",
+      "path": "data/satellite/2025/B5_nir.tif",
+      "dtype": "uint16",
+      "width": 333,
+      "height": 371,
+      "crs": "EPSG:32643",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B6_swir1": {
+      "asset": "swir16",
+      "path": "data/satellite/2025/B6_swir1.tif",
+      "dtype": "uint16",
+      "width": 333,
+      "height": 371,
+      "crs": "EPSG:32643",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    },
+    "B7_swir2": {
+      "asset": "swir22",
+      "path": "data/satellite/2025/B7_swir2.tif",
+      "dtype": "uint16",
+      "width": 333,
+      "height": 371,
+      "crs": "EPSG:32643",
+      "resolution_m": 30.0,
+      "nodata": 0.0
+    }
+  },
+  "preview": "scene_preview.jpg"
+}

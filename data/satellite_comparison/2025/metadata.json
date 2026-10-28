@@ -1,0 +1,13 @@
+{
+  "source": "Microsoft Planetary Computer",
+  "collection": "landsat-c2-l2",
+  "item_id": "LC09_L2SP_143054_20250906_02_T1",
+  "acquisition_date": "2025-09-06",
+  "year": 2025,
+  "study_area": "config/aoi.geojson",
+  "bands": [
+    "red.tif",
+    "green.tif",
+    "blue.tif"
+  ]
+}

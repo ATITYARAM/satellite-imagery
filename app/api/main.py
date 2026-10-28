@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import shutil
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -18,6 +19,8 @@ DATA_ROOT = ROOT / 'data' / 'satellite'
 COMPARISON_ROOT = ROOT / 'data' / 'satellite_comparison'
 ARCHIVE_ROOT = ROOT / 'data_external' / 'thiruvananthapuram_2015_2025'
 ARCHIVE_CATALOG = ROOT / 'data' / 'satellite' / 'thiruvananthapuram_2015_2025' / 'catalog' / 'selected_dates.csv'
+
+COMPARISON_BANDS = ('red', 'green', 'blue')
 
 def current_aoi_bounds():
     if not AOI_PATH.exists():
@@ -48,24 +51,129 @@ def project_info():
 def domains():
     return ['satellite', 'history', 'terrain', 'weather', 'ocean', 'prediction', 'result']
 
-def _download_comparison_scene(year: int) -> Path:
-    """Fetch the selected comparison scene directly from Microsoft Planetary Computer into a separate folder."""
+def _rgb_valid_coverage(directory: Path) -> float | None:
+    """Return the fraction of pixels valid in all three display bands."""
+    if not _valid_rgb_bands(directory):
+        return None
+    import numpy as np
+    import rasterio
+
+    masks = []
+    for band in COMPARISON_BANDS:
+        with rasterio.open(directory / f'{band}.tif') as source:
+            values = source.read(1)
+            valid = np.isfinite(values) & (values > 0)
+            if source.nodata is not None:
+                valid &= values != source.nodata
+            masks.append(valid)
+    return float(np.logical_and.reduce(masks).mean())
+
+
+def _selected_comparison_scene(year: int) -> dict:
+    """Read the chosen catalogue record, substituting only for inadequate AOI coverage."""
+    if year not in (2015, 2025):
+        raise HTTPException(status_code=404, detail='Only 2015 and 2025 comparison images are available.')
+    if not ARCHIVE_CATALOG.is_file():
+        raise HTTPException(status_code=500, detail='Selected-scene catalogue is missing.')
+    try:
+        with ARCHIVE_CATALOG.open(newline='', encoding='utf-8') as handle:
+            rows = [row for row in csv.DictReader(handle) if row.get('year') == str(year)]
+        if not rows:
+            raise ValueError(f'No selected {year} scene exists in the catalogue.')
+        rows.sort(key=lambda row: row['acquisition_datetime_utc'])
+        selected = rows[0] if year == 2015 else rows[-1]
+        required = ('collection_id', 'item_id', 'acquisition_date_utc', 'acquisition_datetime_utc')
+        if any(not selected.get(key) for key in required):
+            raise ValueError(f'Selected {year} catalogue record is incomplete.')
+        if year == 2015:
+            return selected
+
+        # The last selected 2025 scene is the intended record, but its local
+        # clipped RGB coverage is only ~25%. Prefer the nearest earlier
+        # selected Landsat scene with >=75% real AOI coverage so the comparison
+        # does not imply that nodata is ocean or land.
+        original = selected
+        for candidate in reversed(rows[:-1]):
+            if candidate.get('collection_id') != 'landsat-c2-l2':
+                continue
+            coverage = _rgb_valid_coverage(_archive_directory(candidate))
+            if coverage is not None and coverage >= 0.75:
+                candidate = candidate.copy()
+                candidate['comparison_selection'] = 'coverage_substitution'
+                candidate['original_last_selected_item_id'] = original['item_id']
+                candidate['original_last_selected_datetime'] = original['acquisition_datetime_utc']
+                candidate['original_last_selected_coverage_percent'] = round((_rgb_valid_coverage(_archive_directory(original)) or 0) * 100, 2)
+                return candidate
+        selected['comparison_selection'] = 'catalogue_last_selected'
+        return selected
+    except (OSError, csv.Error, KeyError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=f'Could not read selected-scene catalogue: {exc}') from exc
+
+
+def _comparison_directory(scene: dict) -> Path:
+    return COMPARISON_ROOT / scene['year'] / scene['item_id']
+
+
+def _archive_directory(scene: dict) -> Path:
+    return (
+        ARCHIVE_ROOT / scene['year'] / scene['acquisition_date_utc'] /
+        scene['collection_id'] / scene['item_id']
+    )
+
+
+def _valid_rgb_bands(directory: Path) -> bool:
+    return all((directory / f'{band}.tif').is_file() and (directory / f'{band}.tif').stat().st_size > 0 for band in COMPARISON_BANDS)
+
+
+def _comparison_metadata(scene: dict) -> dict:
+    metadata = {
+        'source': 'Microsoft Planetary Computer',
+        'collection': scene['collection_id'],
+        'item_id': scene['item_id'],
+        'acquisition_date': scene['acquisition_date_utc'],
+        'acquisition_datetime': scene['acquisition_datetime_utc'],
+        'platform': scene.get('platform'),
+        'cloud_cover_percent': float(scene['cloud_cover_percent']) if scene.get('cloud_cover_percent') else None,
+        'year': int(scene['year']),
+        'study_area': 'config/aoi.geojson',
+        'bands': [f'{band}.tif' for band in COMPARISON_BANDS],
+    }
+    if scene.get('comparison_selection') == 'coverage_substitution':
+        metadata['selection_note'] = (
+            'The catalogue last-selected 2025 scene has insufficient AOI coverage; '
+            'the nearest earlier selected Landsat scene with adequate cached coverage is displayed.'
+        )
+        metadata['original_last_selected_item_id'] = scene['original_last_selected_item_id']
+        metadata['original_last_selected_datetime'] = scene['original_last_selected_datetime']
+        metadata['original_last_selected_coverage_percent'] = scene['original_last_selected_coverage_percent']
+    return metadata
+
+
+def _download_comparison_scene(year: int) -> tuple[Path, dict]:
+    """Use the selected archive scene, downloading only when its RGB cache is absent."""
     import planetary_computer
     import pystac_client
     import rasterio
     from rasterio.mask import mask
     from rasterio.warp import transform_geom
 
-    selected_scenes = {
-        2015: ("landsat-c2-l2", "LC08_L2SP_144054_20150419_02_T1", "2015-04-19"),
-        2025: ("landsat-c2-l2", "LC09_L2SP_143054_20250906_02_T1", "2025-09-06"),
-    }
-    collection, item_id, acquisition_date = selected_scenes[year]
-    output_dir = COMPARISON_ROOT / str(year)
+    scene = _selected_comparison_scene(year)
+    collection, item_id = scene['collection_id'], scene['item_id']
+    output_dir = _comparison_directory(scene)
     output_dir.mkdir(parents=True, exist_ok=True)
-    band_paths = [output_dir / f"{name}.tif" for name in ("red", "green", "blue")]
-    if all(path.is_file() and path.stat().st_size > 0 for path in band_paths):
-        return output_dir
+    band_paths = [output_dir / f'{name}.tif' for name in COMPARISON_BANDS]
+    if _valid_rgb_bands(output_dir):
+        return output_dir, _comparison_metadata(scene)
+
+    # The catalogue downloader has already clipped the exact selected scene.
+    # Populate the designated comparison cache from it before contacting MPC.
+    archive_dir = _archive_directory(scene)
+    if _valid_rgb_bands(archive_dir):
+        for band_name, out_path in zip(COMPARISON_BANDS, band_paths):
+            shutil.copy2(archive_dir / f'{band_name}.tif', out_path)
+        metadata = _comparison_metadata(scene)
+        (output_dir / 'metadata.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
+        return output_dir, metadata
 
     if not AOI_PATH.is_file():
         raise HTTPException(status_code=500, detail="Study-area file config/aoi.geojson is missing.")
@@ -73,9 +181,12 @@ def _download_comparison_scene(year: int) -> Path:
         aoi = json.load(handle)
     geometry = aoi["features"][0]["geometry"]
 
-    catalog = pystac_client.Client.open("https://planetarycomputer.microsoft.com/api/stac/v1/")
-    search = catalog.search(collections=[collection], ids=[item_id], max_items=1)
-    items = list(search.items())
+    try:
+        catalog = pystac_client.Client.open("https://planetarycomputer.microsoft.com/api/stac/v1/")
+        search = catalog.search(collections=[collection], ids=[item_id], max_items=1)
+        items = list(search.items())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f'Microsoft Planetary Computer request failed for {item_id}: {exc}') from exc
     if not items:
         raise HTTPException(status_code=502, detail=f"Microsoft Planetary Computer did not return scene {item_id}.")
     item = planetary_computer.sign(items[0])
@@ -85,26 +196,36 @@ def _download_comparison_scene(year: int) -> Path:
         if asset is None:
             raise HTTPException(status_code=502, detail=f"Scene {item_id} has no {band_name} asset.")
         out_path = output_dir / f"{band_name}.tif"
-        with rasterio.open(asset.href) as source:
-            geometry_in_crs = transform_geom("EPSG:4326", source.crs, geometry, precision=6)
-            clipped, transform = mask(source, [geometry_in_crs], crop=True)
-            profile = source.profile.copy()
-            profile.update(driver="GTiff", height=clipped.shape[1], width=clipped.shape[2],
-                           transform=transform, count=1)
-            with rasterio.open(out_path, "w", **profile) as target:
-                target.write(clipped[0], 1)
+        try:
+            with rasterio.open(asset.href) as source:
+                geometry_in_crs = transform_geom("EPSG:4326", source.crs, geometry, precision=6)
+                clipped, transform = mask(source, [geometry_in_crs], crop=True)
+                if clipped.size == 0:
+                    raise ValueError('AOI clipping produced no pixels')
+                profile = source.profile.copy()
+                profile.update(driver="GTiff", height=clipped.shape[1], width=clipped.shape[2], transform=transform, count=1)
+                with rasterio.open(out_path, "w", **profile) as target:
+                    target.write(clipped[0], 1)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f'Could not download or clip {band_name} for {item_id}: {exc}') from exc
 
-    metadata = {
-        "source": "Microsoft Planetary Computer",
-        "collection": collection,
-        "item_id": item_id,
-        "acquisition_date": acquisition_date,
-        "year": year,
-        "study_area": "config/aoi.geojson",
-        "bands": [path.name for path in band_paths],
-    }
+    metadata = _comparison_metadata(scene)
     (output_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    return output_dir
+    return output_dir, metadata
+
+
+@app.get('/satellite/archive-data/{year}')
+def satellite_archive_data(year: int):
+    directory, metadata = _download_comparison_scene(year)
+    coverage = _rgb_valid_coverage(directory)
+    if coverage is None:
+        raise HTTPException(status_code=422, detail=f'No valid RGB pixels are available for {year}.')
+    return {
+        **metadata,
+        'valid_pixel_coverage_percent': round(coverage * 100, 2),
+        'nodata_pixel_percent': round((1 - coverage) * 100, 2),
+        'image_url': f'/satellite/archive-preview/{year}.png',
+    }
 
 
 @app.get('/satellite/archive-preview/{year}.png')
@@ -113,33 +234,59 @@ def satellite_archive_preview(year: int):
     if year not in (2015, 2025):
         raise HTTPException(status_code=404, detail="Only 2015 and 2025 comparison images are available.")
 
-    year_dir = _download_comparison_scene(year)
+    year_dir, _ = _download_comparison_scene(year)
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import numpy as np
     import rasterio
 
-    bands = []
-    for band_name in ("red", "green", "blue"):
-        with rasterio.open(year_dir / f"{band_name}.tif") as source:
-            values = source.read(1).astype("float32")
-            nodata = source.nodata
-        valid = np.isfinite(values)
-        if nodata is not None:
-            valid &= values != nodata
-        valid &= values > 0
-        if not np.any(valid):
-            raise HTTPException(status_code=422, detail=f"No valid pixels in {year} {band_name} band.")
-        low, high = np.percentile(values[valid], (2, 98))
-        scaled = np.zeros_like(values, dtype="float32")
-        scaled[valid] = np.clip((values[valid] - low) / max(high - low, 1e-6), 0.0, 1.0)
-        bands.append(scaled)
+    output_path = year_dir / f"{year}_rgb_preview_rgba_v2.png"
+    if output_path.is_file() and output_path.stat().st_size > 0:
+        return FileResponse(output_path, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
 
-    rgb = np.stack(bands, axis=-1)
-    output_path = year_dir / f"{year}_rgb_preview.png"
-    plt.imsave(output_path, rgb, format="png")
-    return FileResponse(output_path, media_type="image/png", headers={"Cache-Control": "no-store"})
+    # Compute one robust per-band display range across both comparison dates.
+    # This keeps their brightness comparable while excluding all nodata values.
+    comparison_dirs = {year: year_dir}
+    for other_year in (2015, 2025):
+        if other_year != year:
+            comparison_dirs[other_year], _ = _download_comparison_scene(other_year)
+
+    display_ranges = []
+    for band_name in COMPARISON_BANDS:
+        valid_values = []
+        for directory in comparison_dirs.values():
+            with rasterio.open(directory / f'{band_name}.tif') as source:
+                values = source.read(1).astype('float32')
+                valid = np.isfinite(values) & (values > 0)
+                if source.nodata is not None:
+                    valid &= values != source.nodata
+                if np.any(valid):
+                    valid_values.append(values[valid])
+        if not valid_values:
+            raise HTTPException(status_code=422, detail=f'No valid pixels in comparison {band_name} bands.')
+        combined = np.concatenate(valid_values)
+        low, high = np.percentile(combined, (2, 98))
+        display_ranges.append((float(low), float(high)))
+
+    scaled_bands, valid_masks = [], []
+    for band_name, (low, high) in zip(COMPARISON_BANDS, display_ranges):
+        with rasterio.open(year_dir / f'{band_name}.tif') as source:
+            values = source.read(1).astype('float32')
+            valid = np.isfinite(values) & (values > 0)
+            if source.nodata is not None:
+                valid &= values != source.nodata
+        scaled = np.zeros_like(values, dtype='float32')
+        scaled[valid] = np.clip((values[valid] - low) / max(high - low, 1e-6), 0.0, 1.0)
+        scaled_bands.append(scaled)
+        valid_masks.append(valid)
+
+    rgb_valid = np.logical_and.reduce(valid_masks)
+    if not np.any(rgb_valid):
+        raise HTTPException(status_code=422, detail=f'No common valid RGB pixels in {year} imagery.')
+    rgba = np.dstack([*scaled_bands, rgb_valid.astype('float32')])
+    plt.imsave(output_path, rgba, format="png")
+    return FileResponse(output_path, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
 
 
 @app.get('/satellite/data')
@@ -233,7 +380,7 @@ def satellite_rgb(year: int):
 
 @app.get('/satellite/color/{year}.png')
 def satellite_color(year: int):
-    if year not in (2016, 2026):
+    if year not in (2015, 2025):
         raise HTTPException(status_code=404, detail='Satellite year not found')
 
     import matplotlib
@@ -251,6 +398,11 @@ def satellite_color(year: int):
         raise HTTPException(status_code=404, detail='RGB band data not found')
 
     output_path = year_dir / 'aoi_color_true_color.png'
+
+    # The PNG is only a display rendering of the clipped, georeferenced AOI
+    # GeoTIFFs. Keep the source bands untouched and reuse the cached rendering.
+    if output_path.is_file() and output_path.stat().st_size > 0:
+        return FileResponse(output_path, media_type='image/png')
 
     bands = []
     for path in (red_path, green_path, blue_path):

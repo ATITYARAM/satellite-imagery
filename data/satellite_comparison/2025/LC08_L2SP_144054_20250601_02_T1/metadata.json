@@ -1,0 +1,20 @@
+{
+  "source": "Microsoft Planetary Computer",
+  "collection": "landsat-c2-l2",
+  "item_id": "LC08_L2SP_144054_20250601_02_T1",
+  "acquisition_date": "2025-06-01",
+  "acquisition_datetime": "2025-06-01T05:11:32.460255+00:00",
+  "platform": "landsat-8",
+  "cloud_cover_percent": 15.67,
+  "year": 2025,
+  "study_area": "config/aoi.geojson",
+  "bands": [
+    "red.tif",
+    "green.tif",
+    "blue.tif"
+  ],
+  "selection_note": "The catalogue last-selected 2025 scene has insufficient AOI coverage; the nearest earlier selected Landsat scene with adequate cached coverage is displayed.",
+  "original_last_selected_item_id": "LC09_L2SP_143054_20250906_02_T1",
+  "original_last_selected_datetime": "2025-09-06T05:06:05.429916+00:00",
+  "original_last_selected_coverage_percent": 25.06
+}
