@@ -1,10 +1,8 @@
-"""Prototype XGBoost model for paired 2016/2026 satellite imagery.
+"""Prototype XGBoost model using 2015, 2020 and 2025 satellite observations.
 
-This is intentionally limited to the two available satellite observations.
-Because no erosion ground-truth labels are present yet, the classifier target
-is a paired-image change proxy: increased MNDWI together with decreased NDVI.
-The model is a real XGBClassifier run; this is not the final validated
-five-domain erosion model.
+The classifier target remains a temporal change proxy, not ground-truth erosion
+labels: increased MNDWI together with decreased NDVI between the first and last
+years. Intermediate observations add five-year interval features.
 """
 from __future__ import annotations
 
@@ -22,7 +20,7 @@ OUTPUT_DIR = ROOT / "outputs" / "xgboost"
 RESULT_IMAGE = OUTPUT_DIR / "erosion_change_xgboost.png"
 RESULT_JSON = OUTPUT_DIR / "result.json"
 
-YEARS = (2016, 2026)
+YEARS = (2015, 2020, 2025)
 BAND_FILES = {
     "blue": "B2_blue.tif",
     "green": "B3_green.tif",
@@ -80,59 +78,47 @@ def _read_year(year: int, max_pixels: int = 180_000) -> tuple[dict[str, np.ndarr
 
 
 def _build_features(
-    old: dict[str, np.ndarray],
-    new: dict[str, np.ndarray],
+    yearly: dict[int, dict[str, np.ndarray]],
 ) -> tuple[np.ndarray, np.ndarray, list[str], np.ndarray]:
-    old_ndvi = _safe_index(old["nir"], old["red"])
-    old_ndwi = _safe_index(old["green"], old["nir"])
-    old_mndwi = _safe_index(old["green"], old["swir1"])
-    old_savi = 1.5 * (old["nir"] - old["red"]) / (old["nir"] + old["red"] + 0.5)
-
-    new_ndvi = _safe_index(new["nir"], new["red"])
-    new_ndwi = _safe_index(new["green"], new["nir"])
-    new_mndwi = _safe_index(new["green"], new["swir1"])
-    new_savi = 1.5 * (new["nir"] - new["red"]) / (new["nir"] + new["red"] + 0.5)
-
-    old_savi[~np.isfinite(old_savi)] = np.nan
-    new_savi[~np.isfinite(new_savi)] = np.nan
-
+    """Build temporal features for every five-year interval in the study window."""
+    years = sorted(yearly)
+    indices_by_year: dict[int, dict[str, np.ndarray]] = {}
     arrays: list[np.ndarray] = []
     names: list[str] = []
 
-    for year_name, source in (("2016", old), ("2026", new)):
-        for name in BAND_ORDER:
-            arrays.append(source[name])
-            names.append(f"{name}_{year_name}")
+    for year in years:
+        source = yearly[year]
+        ndvi = _safe_index(source["nir"], source["red"])
+        ndwi = _safe_index(source["green"], source["nir"])
+        mndwi = _safe_index(source["green"], source["swir1"])
+        savi = 1.5 * (source["nir"] - source["red"]) / (source["nir"] + source["red"] + 0.5)
+        savi[~np.isfinite(savi)] = np.nan
+        indices_by_year[year] = {"ndvi": ndvi, "ndwi": ndwi, "mndwi": mndwi, "savi": savi}
 
-    old_indices = [old_ndvi, old_ndwi, old_mndwi, old_savi]
-    new_indices = [new_ndvi, new_ndwi, new_mndwi, new_savi]
-    index_names = ["ndvi", "ndwi", "mndwi", "savi"]
+        for band_name in BAND_ORDER:
+            arrays.append(source[band_name])
+            names.append(f"{band_name}_{year}")
+        for index_name, value in indices_by_year[year].items():
+            arrays.append(value)
+            names.append(f"{index_name}_{year}")
 
-    for name, value in zip(index_names, old_indices):
-        arrays.append(value)
-        names.append(f"{name}_2016")
-    for name, value in zip(index_names, new_indices):
-        arrays.append(value)
-        names.append(f"{name}_2026")
-
-    delta_arrays = [
-        new_ndvi - old_ndvi,
-        new_ndwi - old_ndwi,
-        new_mndwi - old_mndwi,
-        new_savi - old_savi,
-    ]
-    for name, value in zip(index_names, delta_arrays):
-        arrays.append(value)
-        names.append(f"delta_{name}")
+    for previous, current in zip(years, years[1:]):
+        for index_name in ("ndvi", "ndwi", "mndwi", "savi"):
+            arrays.append(indices_by_year[current][index_name] - indices_by_year[previous][index_name])
+            names.append(f"delta_{index_name}_{previous}_{current}")
 
     stacked = np.stack(arrays, axis=-1).astype("float32")
     finite = np.isfinite(stacked).all(axis=-1)
     flat = stacked.reshape(-1, stacked.shape[-1])
     valid = finite.reshape(-1)
 
-    change_signal = (new_mndwi - old_mndwi) - 0.5 * (new_ndvi - old_ndvi)
+    first, last = years[0], years[-1]
+    change_signal = (
+        indices_by_year[last]["mndwi"] - indices_by_year[first]["mndwi"]
+    ) - 0.5 * (
+        indices_by_year[last]["ndvi"] - indices_by_year[first]["ndvi"]
+    )
     return flat, valid, names, change_signal
-
 
 def _signature() -> str:
     with (ROOT / "config" / "aoi.geojson").open("r", encoding="utf-8") as handle:
@@ -181,12 +167,18 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
     from sklearn.model_selection import train_test_split
     from xgboost import XGBClassifier
 
-    old, old_shape = _read_year(2016)
-    new, new_shape = _read_year(2026)
-    if old_shape != new_shape:
-        raise RuntimeError(f"2016 and 2026 grids differ after resampling: {old_shape} vs {new_shape}")
+    yearly: dict[int, dict[str, np.ndarray]] = {}
+    grid_shape: tuple[int, int] | None = None
+    for year in YEARS:
+        values, shape = _read_year(year)
+        if grid_shape is None:
+            grid_shape = shape
+        elif shape != grid_shape:
+            raise RuntimeError(f"{year} grid differs after resampling: {shape} vs {grid_shape}")
+        yearly[year] = values
 
-    features, valid, feature_names, change_signal = _build_features(old, new)
+    assert grid_shape is not None
+    features, valid, feature_names, change_signal = _build_features(yearly)
 
     valid_signal = change_signal.reshape(-1)[valid]
     if valid_signal.size < 100:
@@ -201,7 +193,7 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
     x = features[valid][train_mask]
     y = target[train_mask]
     if np.unique(y).size < 2:
-        raise RuntimeError("Paired-image change proxy produced only one class.")
+        raise RuntimeError("Multi-year change proxy produced only one class.")
 
     sample_x = x
     sample_y = y
@@ -240,7 +232,7 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
     prob_map = probabilities.reshape(old_shape)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    _write_result_image(new, prob_map, RESULT_IMAGE)
+    _write_result_image(yearly[YEARS[-1]], prob_map, RESULT_IMAGE)
 
     importance = np.asarray(model.feature_importances_, dtype=float)
     top_idx = np.argsort(importance)[::-1][:8]
@@ -259,7 +251,7 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
         "status": "ok",
         "model": "XGBoost",
         "classifier": "XGBClassifier",
-        "input_years": [2016, 2026],
+        "input_years": list(YEARS),
         "feature_count": int(len(feature_names)),
         "n_estimators": 180,
         "pixels_analyzed": pixels_analyzed,
@@ -267,7 +259,7 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
         "pseudo_positive_percent": float(np.mean(sample_y) * 100.0),
         "high_score_percent": float(high_score_pixels / max(1, pixels_analyzed) * 100.0),
         "mean_probability": mean_probability,
-        "pseudo_label": "higher MNDWI with lower NDVI between 2016 and 2026",
+        "pseudo_label": "higher MNDWI with lower NDVI between 2015 and 2025; 2020 adds an intermediate observation",
         "image_url": "/xgboost/result.png",
         "run_id": dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
         "input_signature": signature,
