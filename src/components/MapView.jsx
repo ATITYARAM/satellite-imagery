@@ -404,8 +404,12 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={activeSection === 'history'
+            ? 'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+            : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'}
+          url={activeSection === 'history'
+            ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         />
 
         {polygonPositions && (
