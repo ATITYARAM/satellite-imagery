@@ -81,7 +81,7 @@ def _reference_grid(first_band: Path) -> dict[str, Any]:
     import rasterio
     from affine import Affine
     with rasterio.open(first_band) as src:
-        scale = max(1.0, math.sqrt((src.height * src.width) / 180_000))
+        scale = max(1.0, math.sqrt((src.height * src.width) / 30_000))
         height = max(1, int(round(src.height / scale)))
         width = max(1, int(round(src.width / scale)))
         return {
@@ -227,7 +227,7 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
     all_valid = features[valid]
     finite_rows = np.isfinite(all_valid).all(axis=1)
     probabilities = np.full(features.shape[0], np.nan, dtype="float32")
-    probabilities[valid_indices[finite_signal][finite_rows] if False else np.flatnonzero(valid)[finite_rows]] = model.predict_proba(all_valid[finite_rows])[:, 1]
+    probabilities[np.flatnonzero(valid)[finite_rows]] = model.predict_proba(all_valid[finite_rows])[:, 1]
     prob_map = probabilities.reshape(reference["shape"])
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
