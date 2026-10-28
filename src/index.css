@@ -713,3 +713,28 @@ button, a { font: inherit; }
   .clean-map-header { flex-direction: column; }
   .clean-feature-row { grid-template-columns: minmax(90px, .9fr) minmax(45px, 1fr) 38px; gap: 7px; }
 }
+
+
+/* Consolidated five-domain table replaces the duplicate historical map panel. */
+.result-domain-table-section { max-width: 1480px; margin: 0 auto; min-width: 0; }
+.result-domain-table-card { padding: 16px; min-width: 0; }
+.domain-table-scroll { width: 100%; overflow-x: auto; border: 1px solid rgba(51,65,85,.65); border-radius: 10px; margin-top: 14px; }
+.domain-summary-table { width: 100%; min-width: 860px; border-collapse: collapse; text-align: left; }
+.domain-summary-table thead { background: rgba(30,41,59,.75); }
+.domain-summary-table th, .domain-summary-table td { padding: 14px 13px; border-bottom: 1px solid rgba(51,65,85,.55); vertical-align: top; font-size: .76rem; line-height: 1.55; }
+.domain-summary-table thead th { color: #94a3b8; font-size: .67rem; font-weight: 750; letter-spacing: .045em; text-transform: uppercase; white-space: nowrap; }
+.domain-summary-table tbody th { color: #e2e8f0; font-weight: 700; min-width: 150px; }
+.domain-summary-table tbody td { color: #cbd5e1; }
+.domain-summary-table tbody tr:last-child th, .domain-summary-table tbody tr:last-child td { border-bottom: 0; }
+.domain-summary-table tbody tr:hover { background: rgba(30,41,59,.28); }
+.domain-table-name { display: inline-flex; align-items: center; gap: 8px; }
+.domain-table-name svg { color: #38bdf8; flex: 0 0 auto; }
+.domain-data-status { display: inline-block; border-radius: 999px; padding: 4px 8px; font-size: .67rem; line-height: 1.35; white-space: nowrap; }
+.domain-data-status.real { color: #7dd3fc; background: rgba(14,165,233,.12); border: 1px solid rgba(56,189,248,.3); }
+.domain-data-status.scenario { color: #fcd34d; background: rgba(245,158,11,.09); border: 1px solid rgba(245,158,11,.25); }
+.domain-table-caption { gap: 12px; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .result-domain-table-card { padding: 10px; }
+  .domain-summary-table { min-width: 780px; }
+  .domain-summary-table th, .domain-summary-table td { padding: 10px; }
+}
