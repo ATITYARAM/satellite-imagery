@@ -355,6 +355,7 @@ def _write_result_image(probability: np.ndarray, reference: dict[str, Any], outp
     import matplotlib.pyplot as plt
     from matplotlib.colors import BoundaryNorm, ListedColormap
     from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
     import rasterio
     from rasterio.enums import Resampling
     from rasterio.warp import reproject
