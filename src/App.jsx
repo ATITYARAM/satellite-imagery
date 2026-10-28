@@ -3,6 +3,30 @@ import { Palette, Satellite, BarChart3, RefreshCw, AlertTriangle, TreePine, Targ
 import Sidebar, { SECTIONS } from './components/Sidebar';
 import MapView from './components/MapView';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const apiUrl = (path) => `${API_BASE_URL}${path}`;
+
+async function fetchApiJson(path, options = {}) {
+  const response = await fetch(apiUrl(path), options);
+  const contentType = response.headers.get('content-type') || '';
+  const body = await response.text();
+  if (!response.ok) {
+    let detail = body || response.statusText;
+    if (contentType.includes('application/json') && body) {
+      try { detail = JSON.parse(body).detail || detail; } catch { /* retain body */ }
+    }
+    throw new Error(`API ${response.status}: ${detail}`);
+  }
+  if (!contentType.includes('application/json')) {
+    const hint = body.trimStart().startsWith('<!doctype') || body.trimStart().startsWith('<html')
+      ? 'Received HTML instead of JSON. Check the Vite /forecast proxy or VITE_API_BASE_URL.'
+      : 'Received a non-JSON response from the backend.';
+    throw new Error(hint);
+  }
+  if (!body.trim()) throw new Error('Backend returned an empty JSON response.');
+  try { return JSON.parse(body); } catch { throw new Error('Backend returned invalid JSON.'); }
+}
+
 function getRequestedSection() {
   const requested = new URLSearchParams(window.location.search).get('section') || 'satellite';
   return SECTIONS.some((section) => section.id === requested) ? requested : 'satellite';
@@ -194,16 +218,7 @@ function ResultView() {
     setError('');
     setImageError(false);
     try {
-      const response = force
-        ? await fetch('/xgboost/run?force=true', { method: 'POST' })
-        : await fetch('/xgboost/result');
-      if (!response.ok) {
-        const body = await response.text();
-        let message = body;
-        try { message = JSON.parse(body).detail || body; } catch {}
-        throw new Error(message || 'XGBoost result unavailable');
-      }
-      setResult(await response.json());
+      setResult(await fetchApiJson(force ? '/xgboost/run?force=true' : '/xgboost/result', force ? { method: 'POST' } : {}));
     } catch (err) {
       setResult(null);
       setError(err instanceof Error ? err.message : 'Unable to run XGBoost.');
@@ -217,16 +232,7 @@ function ResultView() {
   const loadForecast = async (year, force = false) => {
     setForecastLoading(true); setForecastError(''); setForecastImageError(false);
     try {
-      const response = force
-        ? await fetch(`/forecast/${year}/run`, { method: 'POST' })
-        : await fetch(`/forecast/${year}`);
-      const body = await response.text();
-      if (!response.ok) {
-        let message = body;
-        try { message = JSON.parse(body).detail || body; } catch {}
-        throw new Error(message || 'Forecast unavailable');
-      }
-      setForecast(JSON.parse(body));
+      setForecast(await fetchApiJson(force ? `/forecast/${year}/run` : `/forecast/${year}`, force ? { method: 'POST' } : {}));
     } catch (err) {
       setForecast(null); setForecastError(err instanceof Error ? err.message : 'Forecast unavailable.');
     } finally { setForecastLoading(false); }
@@ -289,7 +295,7 @@ function ResultView() {
                   <article className="result-output-card forecast-map-card">
                     <div className="forecast-warning"><AlertTriangle size={15} /> Synthetic development preview — not a scientific coastal forecast.</div>
                     {forecastImageError ? <div className="result-map-error"><AlertTriangle size={22}/><strong>Forecast map could not load</strong><button type="button" className="result-retry-inline" onClick={() => loadForecast(forecastYear, true)}>Regenerate</button></div>
-                      : <img className="forecast-map-image" src={`${forecast?.image_url}?v=${forecastYear}-${encodeURIComponent(forecast?.input_signature || '')}`} onError={() => setForecastImageError(true)} alt={`${forecastYear} synthetic development shoreline trend preview`} />}
+                      : <img className="forecast-map-image" src={apiUrl(`${forecast?.artifact_urls?.map || forecast?.image_url}?v=${forecastYear}-${encodeURIComponent(forecast?.input_signature || '')}`)} onError={() => setForecastImageError(true)} alt={`${forecastYear} synthetic development shoreline trend preview`} />}
                   </article>
                   <aside className="forecast-summary">
                     <span>MODEL STATUS</span><strong>Real ML forecast unavailable</strong>

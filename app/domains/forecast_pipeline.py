@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -99,38 +100,57 @@ def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
         raise ValueError("Forecast year must be 2026 or 2027")
     records, metadata = _fixture_records()
     signature = hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output, result_path = OUTPUT_DIR / f"forecast_{year}_development.png", OUTPUT_DIR / f"forecast_{year}.json"
+    year_dir = OUTPUT_DIR / str(year)
+    year_dir.mkdir(parents=True, exist_ok=True)
+    output, result_path, geojson_path = year_dir / "forecast_map.png", year_dir / "forecast.json", year_dir / "transects.geojson"
     if not force and output.is_file() and result_path.is_file():
         cached = json.loads(result_path.read_text(encoding="utf-8"))
-        if cached.get("input_signature") == signature:
+        if cached.get("input_signature") == signature and cached.get("artifact_urls") and cached.get("quality_warnings"):
             return cached
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in records:
         grouped[str(record["transect_id"])].append(record)
     transects = [_fit_trend(rows, year) for _, rows in sorted(grouped.items())]
     retreat = [item for item in transects if item["forecast_annual_rate_m_yr"] < 0]
-    _render_preview(year, transects, output)
+    # Atomic replacement prevents an image request seeing a half-written map.
+    temp_image = output.with_suffix(".tmp.png")
+    _render_preview(year, transects, temp_image)
+    os.replace(temp_image, output)
+    feature_collection = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [row["lon"], row["lat"]]}, "properties": {**row, "forecast_year": year, "forecast_horizon_years": year - 2025, "units": "m; m/year", "synthetic": True}}
+        for row in transects
+    ], "properties": {"data_mode": "synthetic_development_preview", "crs": "EPSG:4326", "target": "cross-shore shoreline displacement", "negative_displacement": "retreat"}}
+    temp_geojson = geojson_path.with_suffix(".tmp.json")
+    temp_geojson.write_text(json.dumps(feature_collection, indent=2), encoding="utf-8")
+    os.replace(temp_geojson, geojson_path)
     result = {
-        "status": "ok", "forecast_year": year, "forecast_origin": "2025-12-31",
+        "status": "ok", "forecast_year": year, "forecast_origin": "2025-12-31", "forecast_horizon": year - 2025,
         "data_mode": "synthetic_development_preview", "scientific_forecast_available": False,
+        "model_name": "Synthetic development per-transect OLS trend baseline",
+        "target_name": "cross-shore shoreline displacement", "units": {"displacement": "m", "rate": "m/year", "crs": "EPSG:4326"},
         "model": {"trend_baseline": "development fixture OLS per transect", "xgboost_regression": "unavailable: no genuine aligned shoreline targets"},
         "target": "cross-shore shoreline displacement (m); negative means retreat",
-        "image_url": f"/forecast/{year}/map.png", "transects": transects,
+        "image_url": f"/forecast/{year}/map.png", "artifact_urls": {"map": f"/forecast/{year}/map.png", "transects_geojson": f"/forecast/{year}/transects.geojson"}, "transects": transects,
         "summary": {"transect_count": len(transects), "retreating_transect_count": len(retreat), "mean_displacement_m": float(np.mean([x['forecast_displacement_m'] for x in transects])), "mean_retreat_rate_m_yr": float(np.mean([x['forecast_annual_rate_m_yr'] for x in transects]))},
         "risk_thresholds": {"high": "rate <= -2 m/year", "moderate": "-2 < rate <= -1 m/year", "low": "rate > -1 m/year"},
         "validation": {"available": False, "reason": "No genuine held-out shoreline measurements are available; metrics are intentionally not calculated."},
+        "uncertainty": {"available": True, "type": "illustrative synthetic trend prediction interval", "units": "m", "warning": "Not an uncertainty estimate for real coastal change."},
+        "features_or_inputs": {"shoreline_history": "synthetic annual fixture, 2015–2025", "satellite": "not used as a shoreline target", "terrain_weather_ocean": "not used for this baseline"},
+        "quality_warnings": ["No reviewed real shoreline detections or fixed transect intersections are available.", "Synthetic fixture values and coordinates are only a deterministic UI/development scenario."],
         "real_data_status": {"reviewed_shoreline_observations_available": REAL_SHORELINES.is_file(), "reason": "No reviewed CoastSat/transect-intersection target series is committed."},
         "limitations": ["This is a synthetic development preview, not a coastal forecast.", "Synthetic fixture records are never used as real targets or to validate XGBoost.", "A real forecast requires reviewed shoreline detections, fixed transects, tide/quality handling, and chronological backtesting."],
         "input_signature": signature,
+        "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
     }
-    result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    temp_result = result_path.with_suffix(".tmp.json")
+    temp_result.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    os.replace(temp_result, result_path)
     return result
 
 
 def forecast_image(year: int) -> Path:
     run_forecast(year)
-    path = OUTPUT_DIR / f"forecast_{year}_development.png"
+    path = OUTPUT_DIR / str(year) / "forecast_map.png"
     if not path.is_file() or path.stat().st_size == 0:
         raise FileNotFoundError("Forecast map was not created")
     return path

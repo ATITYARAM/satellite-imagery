@@ -13,6 +13,7 @@ export default defineConfig({
       '/aoi': 'http://127.0.0.1:8000',
       '/shoreline': 'http://127.0.0.1:8000',
       '/xgboost': 'http://127.0.0.1:8000',
+      '/forecast': 'http://127.0.0.1:8000',
       '/health': 'http://127.0.0.1:8000',
     },
   },
