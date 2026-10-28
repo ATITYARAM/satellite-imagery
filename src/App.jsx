@@ -328,67 +328,62 @@ function ResultView() {
             </article>
           </section>
 
-          <section className="result-map-layout">
-            <article className="result-output-card clean-map-card">
+          <section className="result-domain-table-section" aria-label="Five-domain data summary">
+            <article className="result-output-card result-domain-table-card">
               <div className="result-card-header clean-map-header">
                 <div>
-                  <span>SPATIAL OUTPUT</span>
-                  <strong>Historical spectral-change overlay on satellite imagery</strong>
-                  <p>2015–2025 satellite RGB with a transparent XGBoost change-proxy layer. The year-specific retreat scenario is shown separately above.</p>
+                  <span>SPATIAL OUTPUT · DATA SUMMARY</span>
+                  <strong>Five-domain coastal analysis table</strong>
+                  <p>One consolidated view of the data coverage, purpose, and current status of each domain used by the platform.</p>
                 </div>
                 <span className={isFull ? 'result-status-pill complete' : 'result-status-pill partial'}>
-                  {isFull ? 'Full archive' : 'Development run'}
+                  {isFull ? 'Complete satellite archive' : 'Partial satellite archive'}
                 </span>
               </div>
-              <div className="result-image-wrap clean-result-image">
-                {imageError ? (
-                  <div className="result-map-error" role="alert">
-                    <AlertTriangle size={22} />
-                    <strong>Map image could not load</strong>
-                    <span>The result data loaded, but the PNG endpoint failed.</span>
-                    <button type="button" className="result-retry-inline" onClick={() => runModel(true)}>Regenerate map</button>
-                  </div>
-                ) : (
-                  <img
-                    src={result?.image_url ? result.image_url + '?v=' + encodeURIComponent(result.run_id || 'latest') : ''}
-                    alt="Geographically annotated spectral-change proxy map for Thiruvananthapuram Coast, with score zones, study-area boundary, coordinate labels, north arrow, scale bar and legend"
-                    onError={() => setImageError(true)}
-                  />
-                )}
+              <div className="domain-table-scroll">
+                <table className="domain-summary-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Domain</th>
+                      <th scope="col">Coverage</th>
+                      <th scope="col">Records / scenes</th>
+                      <th scope="col">Purpose in the analysis</th>
+                      <th scope="col">Current data status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th scope="row"><span className="domain-table-name"><Satellite size={16} /> Satellite imagery</span></th>
+                      <td>2015–2025</td>
+                      <td>{realScenes} / {totalScenes} scenes</td>
+                      <td>Surface reflectance and spectral indices used to calculate historical change-proxy features.</td>
+                      <td><span className="domain-data-status real">Real satellite archive</span></td>
+                    </tr>
+                    {[
+                      { key: 'shoreline_history', name: 'Shoreline history', coverage: 'Annual transect scenarios', purpose: 'Illustrates possible shoreline movement at configured transect locations.' },
+                      { key: 'terrain', name: 'Terrain', coverage: 'Study-area grid', purpose: 'Context for elevation and coastal topography; not a surveyed shoreline.' },
+                      { key: 'rainfall_weather', name: 'Rainfall / weather', coverage: 'Monthly scenarios, 2015–2025', purpose: 'Contextual weather variables; not verified station observations.' },
+                      { key: 'ocean_conditions', name: 'Ocean conditions', coverage: 'Monthly scenarios, 2015–2025', purpose: 'Contextual marine conditions; not verified buoy or tide-gauge observations.' },
+                    ].map((domain) => {
+                      const info = result?.domain_coverage?.[domain.key];
+                      return (
+                        <tr key={domain.key}>
+                          <th scope="row"><span className="domain-table-name">{domain.name}</span></th>
+                          <td>{domain.coverage}</td>
+                          <td>{Number(info?.record_count || 0).toLocaleString('en-IN')} records</td>
+                          <td>{domain.purpose}</td>
+                          <td><span className="domain-data-status scenario">Scenario inputs</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div className="result-map-caption">
-                <span><i className="caption-dot" /> Study-area boundary shown; no coastline is inferred.</span>
-                <span>Map generated {result?.run_id ? result.run_id.replace('T', ' · ').replace('Z', ' UTC') : 'for latest run'}</span>
+              <div className="result-map-caption domain-table-caption">
+                <span><i className="caption-dot" /> The table replaces the repeated map in this section.</span>
+                <span>Scenario inputs are not live measurements; the 2026/2027 forecast panel remains separate.</span>
               </div>
             </article>
-
-            <aside className="result-context-column">
-              <article className="result-context-card">
-                <div className="result-panel-title"><Target size={16} /> MODEL SUMMARY</div>
-                <dl className="result-summary-list">
-                  <div><dt>Algorithm</dt><dd>XGBoost classifier</dd></div>
-                  <div><dt>Analysis period</dt><dd>2015–2025</dd></div>
-                  <div><dt>Target</dt><dd>Spectral-change pseudo-label</dd></div>
-                  <div><dt>Output meaning</dt><dd>Unvalidated change proxy</dd></div>
-                </dl>
-              </article>
-              <article className="result-context-card">
-                <div className="result-panel-title"><Satellite size={16} /> INPUT COVERAGE</div>
-                <div className="coverage-summary">
-                  <div><span>Real satellite archive</span><strong>{realScenes}/{totalScenes}</strong></div>
-                  <div className="coverage-track"><i style={{ width: Math.min(100, totalScenes ? realScenes / totalScenes * 100 : 0) + '%' }} /></div>
-                </div>
-                <div className="domain-coverage-list">
-                  {domains.map(([name, info]) => (
-                    <div key={name} className="domain-coverage-row">
-                      <span>{name}</span>
-                      <b>{info?.record_count ?? 0} <small>records</small></b>
-                      <em>Scenario data</em>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            </aside>
           </section>
 
           <section className="result-bottom-grid clean-result-bottom">
