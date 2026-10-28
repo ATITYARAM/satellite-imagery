@@ -1,12 +1,13 @@
-"""Prototype XGBoost model using 2015, 2020 and 2025 satellite observations.
+"""XGBoost coastal-change proxy using all 55 selected scenes from 2015–2025.
 
-The classifier target remains a temporal change proxy, not ground-truth erosion
-labels: increased MNDWI together with decreased NDVI between the first and last
-years. Intermediate observations add five-year interval features.
+The target is a spectral-change proxy, not independently validated erosion labels.
+Scene rasters are read from data_external and are deliberately not committed.
 """
 from __future__ import annotations
 
+import csv
 import datetime as dt
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -16,146 +17,171 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_ROOT = ROOT / "data" / "satellite"
+CATALOG = DATA_ROOT / "thiruvananthapuram_2015_2025" / "catalog" / "selected_dates.csv"
+ARCHIVE_ROOT = ROOT / "data_external" / "thiruvananthapuram_2015_2025"
 OUTPUT_DIR = ROOT / "outputs" / "xgboost"
 RESULT_IMAGE = OUTPUT_DIR / "erosion_change_xgboost.png"
 RESULT_JSON = OUTPUT_DIR / "result.json"
-
-YEARS = (2015, 2020, 2025)
-BAND_FILES = {
-    "blue": "B2_blue.tif",
-    "green": "B3_green.tif",
-    "red": "B4_red.tif",
-    "nir": "B5_nir.tif",
-    "swir1": "B6_swir1.tif",
-    "swir2": "B7_swir2.tif",
-}
-BAND_ORDER = list(BAND_FILES)
-
-
-def _scaled(dn: np.ndarray) -> np.ndarray:
-    out = dn.astype("float32")
-    out[out <= 0] = np.nan
-    return out * 0.0000275 - 0.2
+YEARS = tuple(range(2015, 2026))
+BANDS = ("blue", "green", "red", "nir", "swir1", "swir2")
+INDICES = ("ndvi", "ndwi", "mndwi", "savi")
 
 
 def _safe_index(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    den = a + b
+    denominator = a + b
     with np.errstate(divide="ignore", invalid="ignore"):
-        return np.where(np.abs(den) > 1e-6, (a - b) / den, np.nan)
+        return np.where(np.abs(denominator) > 1e-6, (a - b) / denominator, np.nan)
 
 
-def _read_year(year: int, max_pixels: int = 180_000) -> tuple[dict[str, np.ndarray], tuple[int, int]]:
+def _catalogue() -> list[dict[str, str]]:
+    if not CATALOG.is_file():
+        raise FileNotFoundError(f"Selected-date catalogue not found: {CATALOG}")
+    with CATALOG.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    rows = [row for row in rows if 2015 <= int(row["year"]) <= 2025]
+    rows.sort(key=lambda row: (row["acquisition_datetime_utc"], row["item_id"]))
+    counts = {year: sum(int(row["year"]) == year for row in rows) for year in YEARS}
+    if len(rows) != 55 or any(counts[year] != 5 for year in YEARS):
+        raise RuntimeError(f"Expected exactly 55 selected dates (5 per year, 2015–2025); found {len(rows)} rows: {counts}")
+    return rows
+
+
+def _scene_dir(row: dict[str, str]) -> Path:
+    return ARCHIVE_ROOT / row["year"] / row["acquisition_date_utc"] / row["collection_id"] / row["item_id"]
+
+
+def _input_signature(rows: list[dict[str, str]]) -> str:
+    digest = hashlib.sha256(CATALOG.read_bytes())
+    missing = []
+    for row in rows:
+        folder = _scene_dir(row)
+        for band in (*BANDS,):
+            path = folder / f"{band}.tif"
+            if not path.is_file() or path.stat().st_size == 0:
+                missing.append(f"{row['acquisition_date_utc']} {row['item_id']}: {band}.tif")
+            else:
+                stat = path.stat()
+                digest.update(f"{path}:{stat.st_size}:{stat.st_mtime_ns}".encode())
+        for qa in ("qa_pixel.tif", "scene_classification.tif"):
+            path = folder / qa
+            if path.is_file():
+                stat = path.stat()
+                digest.update(f"{path}:{stat.st_size}:{stat.st_mtime_ns}".encode())
+    if missing:
+        examples = "\n".join(f"  - {item}" for item in missing[:10])
+        remainder = f"\n  ... and {len(missing)-10} more missing bands" if len(missing) > 10 else ""
+        raise FileNotFoundError(
+            f"All six bands are required for all 55 selected scenes. Missing inputs:\n{examples}{remainder}\n"
+            "Run: .venv/bin/python scripts/sample_thiruvananthapuram_satellite.py --download"
+        )
+    return digest.hexdigest()
+
+
+def _reference_grid(first_band: Path) -> dict[str, Any]:
     import rasterio
-    from rasterio.enums import Resampling
+    from affine import Affine
+    with rasterio.open(first_band) as src:
+        scale = max(1.0, math.sqrt((src.height * src.width) / 180_000))
+        height = max(1, int(round(src.height / scale)))
+        width = max(1, int(round(src.width / scale)))
+        return {
+            "shape": (height, width),
+            "transform": src.transform * Affine.scale(src.width / width, src.height / height),
+            "crs": src.crs,
+        }
 
-    year_dir = DATA_ROOT / str(year)
-    first_path = year_dir / BAND_FILES["blue"]
-    if not first_path.exists():
-        raise FileNotFoundError(f"Missing satellite band data for {year}: {first_path}")
 
-    with rasterio.open(first_path) as src:
-        height, width = src.height, src.width
+def _read_scene(row: dict[str, str], reference: dict[str, Any]) -> dict[str, np.ndarray]:
+    import rasterio
+    from rasterio.warp import Resampling, reproject
 
-    total = height * width
-    scale = max(1.0, math.sqrt(total / max_pixels))
-    out_height = max(1, int(round(height / scale)))
-    out_width = max(1, int(round(width / scale)))
-
-    values: dict[str, np.ndarray] = {}
-    for name, filename in BAND_FILES.items():
-        path = year_dir / filename
-        if not path.exists():
-            raise FileNotFoundError(f"Missing satellite band data for {year}: {path}")
-        with rasterio.open(path) as src:
-            dn = src.read(
-                1,
-                out_shape=(out_height, out_width),
-                resampling=Resampling.bilinear,
+    folder = _scene_dir(row)
+    height, width = reference["shape"]
+    output: dict[str, np.ndarray] = {}
+    valid = np.ones((height, width), dtype=bool)
+    for band in BANDS:
+        with rasterio.open(folder / f"{band}.tif") as src:
+            raw = src.read(1).astype("float32")
+            raw_valid = np.isfinite(raw) & (raw > 0)
+            if src.nodata is not None:
+                raw_valid &= raw != src.nodata
+            cleaned = np.where(raw_valid, raw, np.nan).astype("float32")
+            destination = np.full((height, width), np.nan, dtype="float32")
+            reproject(
+                source=cleaned, destination=destination,
+                src_transform=src.transform, src_crs=src.crs, src_nodata=np.nan,
+                dst_transform=reference["transform"], dst_crs=reference["crs"],
+                dst_nodata=np.nan, resampling=Resampling.bilinear,
             )
-        values[name] = _scaled(dn)
+        # Landsat Collection 2 Level-2 scale/offset vs Sentinel-2 L2A reflectance.
+        if row["collection_id"] == "sentinel-2-l2a":
+            output[band] = destination * 0.0001
+        else:
+            output[band] = destination * 0.0000275 - 0.2
+        valid &= np.isfinite(destination)
 
-    return values, (out_height, out_width)
+    folder = _scene_dir(row)
+    qa_path, scl_path = folder / "qa_pixel.tif", folder / "scene_classification.tif"
+    if qa_path.is_file():
+        qa = np.zeros((height, width), dtype="float32")
+        with rasterio.open(qa_path) as src:
+            reproject(source=rasterio.band(src, 1), destination=qa,
+                src_transform=src.transform, src_crs=src.crs,
+                dst_transform=reference["transform"], dst_crs=reference["crs"],
+                resampling=Resampling.nearest, dst_nodata=0)
+        bits = qa.astype("uint16")
+        cloudy = np.zeros_like(valid)
+        for bit in (1, 2, 3, 4, 5):
+            cloudy |= (bits & (1 << bit)) != 0
+        valid &= ~cloudy
+    elif scl_path.is_file():
+        scl = np.zeros((height, width), dtype="float32")
+        with rasterio.open(scl_path) as src:
+            reproject(source=rasterio.band(src, 1), destination=scl,
+                src_transform=src.transform, src_crs=src.crs,
+                dst_transform=reference["transform"], dst_crs=reference["crs"],
+                resampling=Resampling.nearest, dst_nodata=0)
+        valid &= ~np.isin(scl.astype("uint8"), [0, 1, 3, 8, 9, 10, 11])
+    for band in BANDS:
+        output[band][~valid] = np.nan
+    return output
 
 
-def _build_features(
-    yearly: dict[int, dict[str, np.ndarray]],
-) -> tuple[np.ndarray, np.ndarray, list[str], np.ndarray]:
-    """Build temporal features for every five-year interval in the study window."""
-    years = sorted(yearly)
-    indices_by_year: dict[int, dict[str, np.ndarray]] = {}
+def _add_indices(scene: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    ndvi = _safe_index(scene["nir"], scene["red"])
+    ndwi = _safe_index(scene["green"], scene["nir"])
+    mndwi = _safe_index(scene["green"], scene["swir1"])
+    with np.errstate(divide="ignore", invalid="ignore"):
+        savi = 1.5 * (scene["nir"] - scene["red"]) / (scene["nir"] + scene["red"] + 0.5)
+    savi[~np.isfinite(savi)] = np.nan
+    return {"ndvi": ndvi, "ndwi": ndwi, "mndwi": mndwi, "savi": savi}
+
+
+def _build_features(scenes: list[dict[str, np.ndarray]], dates: list[str]):
+    indexed = [{**scene, **_add_indices(scene)} for scene in scenes]
     arrays: list[np.ndarray] = []
     names: list[str] = []
-
-    for year in years:
-        source = yearly[year]
-        ndvi = _safe_index(source["nir"], source["red"])
-        ndwi = _safe_index(source["green"], source["nir"])
-        mndwi = _safe_index(source["green"], source["swir1"])
-        savi = 1.5 * (source["nir"] - source["red"]) / (source["nir"] + source["red"] + 0.5)
-        savi[~np.isfinite(savi)] = np.nan
-        indices_by_year[year] = {"ndvi": ndvi, "ndwi": ndwi, "mndwi": mndwi, "savi": savi}
-
-        for band_name in BAND_ORDER:
-            arrays.append(source[band_name])
-            names.append(f"{band_name}_{year}")
-        for index_name, value in indices_by_year[year].items():
-            arrays.append(value)
-            names.append(f"{index_name}_{year}")
-
-    for previous, current in zip(years, years[1:]):
-        for index_name in ("ndvi", "ndwi", "mndwi", "savi"):
-            arrays.append(indices_by_year[current][index_name] - indices_by_year[previous][index_name])
-            names.append(f"delta_{index_name}_{previous}_{current}")
-
+    common_observed = np.ones_like(scenes[0]["blue"], dtype=bool)
+    for feature in (*BANDS, *INDICES):
+        stack = np.stack([scene[feature] for scene in indexed])
+        median = np.nanmedian(stack, axis=0)
+        common_observed &= np.isfinite(stack).any(axis=0)
+        for i, date in enumerate(dates):
+            arrays.append(np.where(np.isfinite(stack[i]), stack[i], median))
+            names.append(f"{feature}_{date}")
+        if feature in INDICES:
+            for i in range(len(dates) - 1):
+                arrays.append(stack[i + 1] - stack[i])
+                names.append(f"delta_{feature}_{dates[i]}_{dates[i+1]}")
     stacked = np.stack(arrays, axis=-1).astype("float32")
-    finite = np.isfinite(stacked).all(axis=-1)
-    flat = stacked.reshape(-1, stacked.shape[-1])
-    valid = finite.reshape(-1)
-
-    first, last = years[0], years[-1]
-    change_signal = (
-        indices_by_year[last]["mndwi"] - indices_by_year[first]["mndwi"]
-    ) - 0.5 * (
-        indices_by_year[last]["ndvi"] - indices_by_year[first]["ndvi"]
-    )
-    return flat, valid, names, change_signal
-
-def _signature() -> str:
-    with (ROOT / "config" / "aoi.geojson").open("r", encoding="utf-8") as handle:
-        geojson = json.load(handle)
-    ring = geojson["features"][0]["geometry"]["coordinates"][0]
-    xs = [point[0] for point in ring]
-    ys = [point[1] for point in ring]
-    expected_bounds = [round(min(xs), 6), round(min(ys), 6), round(max(xs), 6), round(max(ys), 6)]
-
-    parts = []
-    for year in YEARS:
-        year_dir = DATA_ROOT / str(year)
-        metadata_path = year_dir / "metadata.json"
-        if not metadata_path.exists():
-            raise FileNotFoundError(
-                f"No satellite metadata for {year}. Download imagery for the current AOI "
-                "with: python scripts/download_landsat_aoi.py"
-            )
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        if metadata.get("aoi_bounds") != expected_bounds:
-            raise RuntimeError(
-                f"The {year} satellite data belongs to a different or unverified AOI. "
-                "Download matching Thiruvananthapuram imagery with: "
-                "python scripts/download_landsat_aoi.py"
-            )
-
-        for filename in BAND_FILES.values():
-            path = year_dir / filename
-            if not path.exists():
-                raise FileNotFoundError(f"Missing input band: {path}")
-            stat = path.stat()
-            parts.append(f"{path}:{stat.st_size}:{stat.st_mtime_ns}")
-    return "|".join(parts)
+    valid = common_observed & np.isfinite(stacked).all(axis=-1)
+    signal = (indexed[-1]["mndwi"] - indexed[0]["mndwi"]) - 0.5 * (indexed[-1]["ndvi"] - indexed[0]["ndvi"])
+    return stacked.reshape(-1, stacked.shape[-1]), valid.reshape(-1), names, signal, indexed[-1]
 
 
 def run_xgboost(force: bool = False) -> dict[str, Any]:
-    signature = _signature()
+    rows = _catalogue()
+    signature = _input_signature(rows)
     if not force and RESULT_JSON.exists() and RESULT_IMAGE.exists():
         try:
             cached = json.loads(RESULT_JSON.read_text(encoding="utf-8"))
@@ -164,106 +190,67 @@ def run_xgboost(force: bool = False) -> dict[str, Any]:
         except (OSError, ValueError, TypeError):
             pass
 
+    import rasterio
     from sklearn.model_selection import train_test_split
     from xgboost import XGBClassifier
 
-    yearly: dict[int, dict[str, np.ndarray]] = {}
-    grid_shape: tuple[int, int] | None = None
-    for year in YEARS:
-        values, shape = _read_year(year)
-        if grid_shape is None:
-            grid_shape = shape
-        elif shape != grid_shape:
-            raise RuntimeError(f"{year} grid differs after resampling: {shape} vs {grid_shape}")
-        yearly[year] = values
+    first_band = _scene_dir(rows[0]) / "blue.tif"
+    reference = _reference_grid(first_band)
+    scenes = [_read_scene(row, reference) for row in rows]
+    dates = [row["acquisition_date_utc"] for row in rows]
+    features, valid, feature_names, signal, latest_scene = _build_features(scenes, dates)
+    valid_indices = np.flatnonzero(valid)
+    signal_valid = signal.reshape(-1)[valid]
+    finite_signal = np.isfinite(signal_valid)
+    valid_indices = valid_indices[finite_signal]
+    signal_valid = signal_valid[finite_signal]
+    if signal_valid.size < 100:
+        raise RuntimeError(f"Too few valid pixels for all-date XGBoost: {signal_valid.size}")
 
-    assert grid_shape is not None
-    features, valid, feature_names, change_signal = _build_features(yearly)
-
-    valid_signal = change_signal.reshape(-1)[valid]
-    if valid_signal.size < 100:
-        raise RuntimeError("Too few valid paired pixels for XGBoost.")
-
-    low_q, high_q = np.nanpercentile(valid_signal, [45, 55])
-    target = np.full(valid_signal.shape, -1, dtype=np.int8)
-    target[valid_signal <= low_q] = 0
-    target[valid_signal >= high_q] = 1
-    train_mask = target >= 0
-
-    x = features[valid][train_mask]
-    y = target[train_mask]
+    low, high = np.nanpercentile(signal_valid, [45, 55])
+    target = np.full(signal_valid.shape, -1, dtype=np.int8)
+    target[signal_valid <= low] = 0
+    target[signal_valid >= high] = 1
+    keep = target >= 0
+    x, y = features[valid_indices[keep]], target[keep]
     if np.unique(y).size < 2:
-        raise RuntimeError("Multi-year change proxy produced only one class.")
-
-    sample_x = x
-    sample_y = y
-    max_train = 90_000
-    if len(sample_y) > max_train:
+        raise RuntimeError("The spectral change proxy produced only one class.")
+    if len(y) > 90_000:
         rng = np.random.default_rng(42)
-        idx = rng.choice(len(sample_y), size=max_train, replace=False)
-        sample_x = sample_x[idx]
-        sample_y = sample_y[idx]
-
-    x_train, _, y_train, _ = train_test_split(
-        sample_x,
-        sample_y,
-        test_size=0.2,
-        random_state=42,
-        stratify=sample_y,
-    )
-
-    model = XGBClassifier(
-        n_estimators=180,
-        max_depth=4,
-        learning_rate=0.05,
-        subsample=0.85,
-        colsample_bytree=0.85,
-        objective="binary:logistic",
-        eval_metric="logloss",
-        tree_method="hist",
-        n_jobs=2,
-        random_state=42,
-    )
+        chosen = rng.choice(len(y), 90_000, replace=False)
+        x, y = x[chosen], y[chosen]
+    x_train, _, y_train, _ = train_test_split(x, y, test_size=0.2, random_state=42, stratify=y)
+    model = XGBClassifier(n_estimators=180, max_depth=4, learning_rate=0.05,
+        subsample=0.85, colsample_bytree=0.85, objective="binary:logistic",
+        eval_metric="logloss", tree_method="hist", n_jobs=2, random_state=42)
     model.fit(x_train, y_train)
-
     all_valid = features[valid]
+    finite_rows = np.isfinite(all_valid).all(axis=1)
     probabilities = np.full(features.shape[0], np.nan, dtype="float32")
-    probabilities[valid] = model.predict_proba(all_valid)[:, 1]
-    prob_map = probabilities.reshape(old_shape)
+    probabilities[valid_indices[finite_signal][finite_rows] if False else np.flatnonzero(valid)[finite_rows]] = model.predict_proba(all_valid[finite_rows])[:, 1]
+    prob_map = probabilities.reshape(reference["shape"])
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    _write_result_image(yearly[YEARS[-1]], prob_map, RESULT_IMAGE)
-
+    _write_result_image(latest_scene, prob_map, RESULT_IMAGE)
     importance = np.asarray(model.feature_importances_, dtype=float)
-    top_idx = np.argsort(importance)[::-1][:8]
-    top_features = [
-        {"name": feature_names[int(i)], "importance": float(importance[int(i)])}
-        for i in top_idx
-        if importance[int(i)] > 0
-    ]
-
-    high_score_threshold = 0.70
-    high_score_pixels = int(np.isfinite(prob_map).sum() and np.sum(prob_map >= high_score_threshold))
-    pixels_analyzed = int(np.isfinite(prob_map).sum())
-    mean_probability = float(np.nanmean(prob_map)) if pixels_analyzed else 0.0
-
+    top_idx = np.argsort(importance)[::-1][:12]
+    top_features = [{"name": feature_names[int(i)], "importance": float(importance[int(i)])}
+        for i in top_idx if importance[int(i)] > 0]
+    pixels = int(np.isfinite(prob_map).sum())
+    high_pixels = int(np.sum(prob_map >= 0.70))
     result = {
-        "status": "ok",
-        "model": "XGBoost",
-        "classifier": "XGBClassifier",
-        "input_years": list(YEARS),
-        "feature_count": int(len(feature_names)),
-        "n_estimators": 180,
-        "pixels_analyzed": pixels_analyzed,
-        "training_samples": int(len(sample_y)),
-        "pseudo_positive_percent": float(np.mean(sample_y) * 100.0),
-        "high_score_percent": float(high_score_pixels / max(1, pixels_analyzed) * 100.0),
-        "mean_probability": mean_probability,
-        "pseudo_label": "higher MNDWI with lower NDVI between 2015 and 2025; 2020 adds an intermediate observation",
-        "image_url": "/xgboost/result.png",
-        "run_id": dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
-        "input_signature": signature,
-        "top_features": top_features,
+        "status": "ok", "model": "XGBoost", "classifier": "XGBClassifier",
+        "input_years": list(YEARS), "input_dates": dates, "scene_count": len(rows),
+        "scene_dates_by_year": {str(year): [row["acquisition_date_utc"] for row in rows if int(row["year"]) == year] for year in YEARS},
+        "input_sensors": sorted({row.get("platform", "") for row in rows}),
+        "feature_count": int(len(feature_names)), "n_estimators": 180,
+        "pixels_analyzed": pixels, "training_samples": int(len(y)),
+        "pseudo_positive_percent": float(np.mean(y) * 100),
+        "high_score_percent": float(high_pixels / max(1, pixels) * 100),
+        "mean_probability": float(np.nanmean(prob_map)) if pixels else 0.0,
+        "pseudo_label": "MNDWI/NDVI first-to-last spectral-change proxy; all selected dates supply temporal features; not ground-truth erosion labels",
+        "image_url": "/xgboost/result.png", "run_id": dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+        "input_signature": signature, "top_features": top_features,
     }
     RESULT_JSON.write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result
