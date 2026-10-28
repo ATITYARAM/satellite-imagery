@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Palette, Satellite, BarChart3, RefreshCw, AlertTriangle, TreePine, Target } from 'lucide-react';
+import { Palette, Satellite, BarChart3, RefreshCw, AlertTriangle, TreePine, Target, Waves, Mountain, CloudRain, History, Database } from 'lucide-react';
 import Sidebar, { SECTIONS } from './components/Sidebar';
 import MapView from './components/MapView';
 
@@ -332,56 +332,64 @@ function ResultView() {
             <article className="result-output-card result-domain-table-card">
               <div className="result-card-header clean-map-header">
                 <div>
-                  <span>SPATIAL OUTPUT · DATA SUMMARY</span>
-                  <strong>Five-domain coastal analysis table</strong>
-                  <p>One consolidated view of the data coverage, purpose, and current status of each domain used by the platform.</p>
+                  <span>SPATIAL OUTPUT · DOMAIN OVERVIEW</span>
+                  <strong>Coastal data inventory</strong>
+                  <p>All five input domains in one view: what each contributes, its coverage, and whether it represents satellite observations or contextual scenario inputs.</p>
                 </div>
-                <span className={isFull ? 'result-status-pill complete' : 'result-status-pill partial'}>
-                  {isFull ? 'Complete satellite archive' : 'Partial satellite archive'}
-                </span>
+                <span className="result-status-pill partial">5 domains</span>
+              </div>
+              <div className="domain-table-summary" aria-label="Domain counts">
+                <div><span>Satellite archive</span><strong>{realScenes}<small> / {totalScenes} scenes</small></strong></div>
+                <div><span>Supporting domains</span><strong>4</strong></div>
+                <div><span>Analysis window</span><strong>2015–2025</strong></div>
               </div>
               <div className="domain-table-scroll">
                 <table className="domain-summary-table">
                   <thead>
                     <tr>
-                      <th scope="col">Domain</th>
+                      <th scope="col">Input domain</th>
                       <th scope="col">Coverage</th>
-                      <th scope="col">Records / scenes</th>
-                      <th scope="col">Purpose in the analysis</th>
-                      <th scope="col">Current data status</th>
+                      <th scope="col">Data volume</th>
+                      <th scope="col">How it is used</th>
+                      <th scope="col">Data type</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <th scope="row"><span className="domain-table-name"><Satellite size={16} /> Satellite imagery</span></th>
+                      <th scope="row">
+                        <span className="domain-table-name"><Satellite size={17} /><span>Satellite imagery<small>Primary observation</small></span></span>
+                      </th>
                       <td>2015–2025</td>
-                      <td>{realScenes} / {totalScenes} scenes</td>
-                      <td>Surface reflectance and spectral indices used to calculate historical change-proxy features.</td>
-                      <td><span className="domain-data-status real">Real satellite archive</span></td>
+                      <td><strong>{realScenes} / {totalScenes}</strong><small className="domain-cell-note">selected scenes available</small></td>
+                      <td>Surface reflectance and spectral indices used to map historical surface-change patterns.</td>
+                      <td><span className="domain-data-status real">Satellite observations</span></td>
                     </tr>
                     {[
-                      { key: 'shoreline_history', name: 'Shoreline history', coverage: 'Annual transect scenarios', purpose: 'Illustrates possible shoreline movement at configured transect locations.' },
-                      { key: 'terrain', name: 'Terrain', coverage: 'Study-area grid', purpose: 'Context for elevation and coastal topography; not a surveyed shoreline.' },
-                      { key: 'rainfall_weather', name: 'Rainfall / weather', coverage: 'Monthly scenarios, 2015–2025', purpose: 'Contextual weather variables; not verified station observations.' },
-                      { key: 'ocean_conditions', name: 'Ocean conditions', coverage: 'Monthly scenarios, 2015–2025', purpose: 'Contextual marine conditions; not verified buoy or tide-gauge observations.' },
+                      { key: 'shoreline_history', name: 'Shoreline history', Icon: History, coverage: 'Annual transect scenarios', purpose: 'Provides example transect positions and possible shoreline movement; not a surveyed shoreline record.' },
+                      { key: 'terrain', name: 'Terrain', Icon: Mountain, coverage: 'Study-area grid', purpose: 'Adds elevation and topography context; does not independently measure erosion.' },
+                      { key: 'rainfall_weather', name: 'Rainfall / weather', Icon: CloudRain, coverage: 'Monthly · 2015–2025', purpose: 'Adds weather context; values are not verified station observations.' },
+                      { key: 'ocean_conditions', name: 'Ocean conditions', Icon: Waves, coverage: 'Monthly · 2015–2025', purpose: 'Adds marine context; values are not verified buoy, tide-gauge, or wave observations.' },
                     ].map((domain) => {
                       const info = result?.domain_coverage?.[domain.key];
+                      const Icon = domain.Icon;
                       return (
                         <tr key={domain.key}>
-                          <th scope="row"><span className="domain-table-name">{domain.name}</span></th>
+                          <th scope="row">
+                            <span className="domain-table-name"><Icon size={17} /><span>{domain.name}<small>Supporting input</small></span></span>
+                          </th>
                           <td>{domain.coverage}</td>
-                          <td>{Number(info?.record_count || 0).toLocaleString('en-IN')} records</td>
+                          <td><strong>{Number(info?.record_count || 0).toLocaleString('en-IN')}</strong><small className="domain-cell-note">records</small></td>
                           <td>{domain.purpose}</td>
-                          <td><span className="domain-data-status scenario">Scenario inputs</span></td>
+                          <td><span className="domain-data-status scenario">Scenario input</span></td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-              <div className="result-map-caption domain-table-caption">
-                <span><i className="caption-dot" /> The table replaces the repeated map in this section.</span>
-                <span>Scenario inputs are not live measurements; the 2026/2027 forecast panel remains separate.</span>
+              <div className="domain-table-footnote">
+                <span><Database size={15} /> Data status</span>
+                <p>Satellite imagery is the real observation archive. The four supporting domains currently provide scenario/context inputs, not live measured environmental data. They must not be interpreted as validated ground truth.</p>
               </div>
             </article>
           </section>
