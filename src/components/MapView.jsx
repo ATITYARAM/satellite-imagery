@@ -396,23 +396,26 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
       )}
 
       <MapContainer
-        center={mapCenter}
-        zoom={12}
-        minZoom={8}
+        center={activeSection === 'terrain' ? [8.455, 76.943] : mapCenter}
+        zoom={activeSection === 'terrain' ? 14 : 12}
+        minZoom={activeSection === 'terrain' ? 12 : 8}
         maxZoom={18}
         zoomControl
+        maxBounds={activeSection === 'terrain' ? [[8.405, 76.925], [8.515, 77.015]] : undefined}
+        maxBoundsViscosity={activeSection === 'terrain' ? 0.85 : 0}
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
-          attribution={activeSection === 'history'
+          attribution={['history', 'terrain'].includes(activeSection)
             ? 'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
             : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'}
-          url={activeSection === 'history'
+          url={['history', 'terrain'].includes(activeSection)
             ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
             : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
+          className={activeSection === 'terrain' ? 'terrain-imagery-tiles' : ''}
         />
 
-        {polygonPositions && (
+        {activeSection !== 'terrain' && polygonPositions && (
           <Polygon
             positions={polygonPositions}
             pathOptions={{
@@ -431,13 +434,6 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
           <GeoJSON key={`shoreline-${shorelineYearB}-${shorelineData.metadata?.generated_utc || 'extracted'}`} data={shorelineLayerB} style={shorelineStyleB} />
         )}
 
-        {activeSection === 'terrain' && domainPayload?.records?.map((row, index) => {
-          const elevation = Number(row.elevation_m) || 0;
-          const color = elevation < 1 ? '#f97316' : elevation < 2 ? '#facc15' : elevation < 3 ? '#34d399' : '#38bdf8';
-          return <CircleMarker key={`${row.row}-${row.col}-${index}`} center={[row.lat, row.lon]} radius={5} pathOptions={{ color, fillColor: color, fillOpacity: .8, weight: .6 }}>
-            <Popup><strong>Terrain cell {row.row}, {row.col}</strong><br/>Elevation: {fmt(elevation)} m<br/>Slope: {fmt(Number(row.slope_deg), 2)}°<br/>Coastal proximity: {fmt(Number(row.coastal_proximity_m), 0)} m</Popup>
-          </CircleMarker>;
-        })}
       </MapContainer>
 
       {DOMAIN_CONFIG[activeSection] && activeSection !== 'history' && <DomainDashboard section={activeSection} payload={domainPayload} loading={domainLoading} error={domainError} />}
