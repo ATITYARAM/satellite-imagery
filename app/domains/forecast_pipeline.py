@@ -235,7 +235,7 @@ def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
     if year not in (2026, 2027):
         raise ValueError("Forecast year must be 2026 or 2027")
     records, metadata = _fixture_records()
-    signature = hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
+    signature = hashlib.sha256(FIXTURE.read_bytes() + b"|satellite-overlay-renderer-v3").hexdigest()
     year_dir = OUTPUT_DIR / str(year)
     year_dir.mkdir(parents=True, exist_ok=True)
     output, result_path, geojson_path = year_dir / "forecast_map.png", year_dir / "forecast.json", year_dir / "transects.geojson"
