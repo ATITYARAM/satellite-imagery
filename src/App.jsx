@@ -56,31 +56,38 @@ function XGBoostSatelliteSplit() {
   const [imageErrors, setImageErrors] = useState({});
 
   const imageUrl = (year) => `/satellite/archive-preview/${year}.png`;
+  const recordImageError = async (year) => {
+    try {
+      const response = await fetch(imageUrl(year));
+      const body = await response.json();
+      setImageErrors((old) => ({ ...old, [year]: body.detail || 'Image request failed.' }));
+    } catch {
+      setImageErrors((old) => ({ ...old, [year]: 'Could not load image from the API. Check that the backend is running.' }));
+    }
+  };
 
   return (
     <main className="xgboost-satellite-split" aria-label="First 2015 and last 2025 satellite imagery">
-      <section className="split-side split-side-left">
-        <div className="satellite-year-label"><strong>2015</strong><span>First selected archive observation</span></div>
-        {imageErrors[2015] ? (
-          <div className="satellite-unavailable">
-            <strong>2015 archive image unavailable</strong>
-            <span>{imageErrors[2015]}</span>
+      {[2015, 2025].map((year) => (
+        <section className="split-side" key={year}>
+          <div className="archive-image-heading">
+            <strong>{year}</strong>
+            <span>{year === 2015 ? 'First selected observation · 19 Apr 2015' : 'Last selected observation · 6 Sep 2025'}</span>
           </div>
-        ) : (
-          <img src={imageUrl(2015)} alt="First selected 2015 satellite image" onError={() => setImageErrors((old) => ({ ...old, 2015: 'Check that the selected 2015 scene RGB bands are downloaded.' }))} />
-        )}
-      </section>
-      <section className="split-side split-side-right">
-        <div className="satellite-year-label"><strong>2025</strong><span>Last selected archive observation</span></div>
-        {imageErrors[2025] ? (
-          <div className="satellite-unavailable">
-            <strong>2025 archive image unavailable</strong>
-            <span>{imageErrors[2025]}</span>
-          </div>
-        ) : (
-          <img src={imageUrl(2025)} alt="Last selected 2025 satellite image" onError={() => setImageErrors((old) => ({ ...old, 2025: 'Check that the selected 2025 scene RGB bands are downloaded.' }))} />
-        )}
-      </section>
+          {imageErrors[year] ? (
+            <div className="satellite-unavailable">
+              <strong>{year} satellite image could not load</strong>
+              <span>{imageErrors[year]}</span>
+            </div>
+          ) : (
+            <img
+              src={imageUrl(year)}
+              alt={`${year} satellite image for the study area`}
+              onError={() => recordImageError(year)}
+            />
+          )}
+        </section>
+      ))}
     </main>
   );
 }
