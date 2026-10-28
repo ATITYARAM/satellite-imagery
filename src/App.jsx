@@ -333,8 +333,8 @@ function ResultView() {
               <div className="result-card-header clean-map-header">
                 <div>
                   <span>SPATIAL OUTPUT</span>
-                  <strong>Spectral-change proxy map</strong>
-                  <p>Supporting satellite-analysis layer; not the shoreline forecast above.</p>
+                  <strong>Satellite map with 2026 / 2027 retreat scenarios</strong>
+                  <p>Satellite basemap with metre-scale scenario overlays. The XGBoost score remains a separate spectral-change proxy.</p>
                 </div>
                 <span className={isFull ? 'result-status-pill complete' : 'result-status-pill partial'}>
                   {isFull ? 'Full archive' : 'Development run'}
