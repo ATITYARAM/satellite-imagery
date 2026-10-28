@@ -3,10 +3,10 @@ import { SECTIONS } from './Sidebar';
 
 const DOMAIN_STATUS = {
   satellite_imagery: { status: 'pipeline-ready', label: 'Satellite: pipeline defined — real imagery pending', color: '#f59e0b' },
-  shoreline_history: { status: 'synthetic',      label: 'Shoreline: SYNTHETIC (random-walk, seed 42)',      color: '#8b5cf6' },
-  terrain:           { status: 'synthetic',      label: 'Terrain: SYNTHETIC (procedural surface, seed 42)',  color: '#10b981' },
-  rainfall_weather:  { status: 'synthetic',      label: 'Rainfall/Weather: SYNTHETIC (seasonal model)',      color: '#3b82f6' },
-  ocean_conditions:  { status: 'synthetic',      label: 'Ocean: SYNTHETIC (M2+S2 tides + wave climatology)', color: '#06b6d4' },
+  shoreline_history: { status: 'synthetic',      label: 'Shoreline: Illustrative scenario',      color: '#8b5cf6' },
+  terrain:           { status: 'synthetic',      label: 'Terrain: Illustrative scenario',  color: '#10b981' },
+  rainfall_weather:  { status: 'synthetic',      label: 'Rainfall/Weather: Illustrative scenario',      color: '#3b82f6' },
+  ocean_conditions:  { status: 'synthetic',      label: 'Ocean: Illustrative scenario', color: '#06b6d4' },
 };
 
 export default function StatusBar({ activeSection }) {
