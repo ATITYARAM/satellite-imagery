@@ -396,7 +396,7 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
             </>
           ) : (
             <p role="status" style={{ margin: '8px 0 0', color: '#fde68a' }}>
-              An approximate reference coastline is shown in orange for orientation only. It is not a satellite-extracted shoreline and must not be used to calculate retreat. Run CoastSat extraction for real year-to-year comparisons.
+              Approximate coastal reference points are shown in orange for orientation only. They are not satellite-extracted shoreline observations and must not be used to calculate retreat. Run CoastSat extraction for real year-to-year comparisons.
             </p>
           )}
         </section>
@@ -443,12 +443,17 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
 
         {activeSection === 'history' && !realShorelineAvailable && (
           <>
-            <Polyline positions={REFERENCE_COAST_TRACE} pathOptions={{ color: '#f97316', weight: 4, opacity: 0.95, dashArray: '7 6' }}>
-              <Popup><strong>Approximate reference coastline</strong><br />Orientation only — not satellite-extracted or measured. Do not use for erosion calculations.</Popup>
-            </Polyline>
             {REFERENCE_COAST_TRACE.filter((_, index) => index % 2 === 0).map((position, index) => (
-              <CircleMarker key={`reference-coast-point-${index}`} center={position} radius={4} pathOptions={{ color: '#fff7ed', weight: 1.5, fillColor: '#f97316', fillOpacity: 1 }}>
-                <Popup>Reference coastline point {index + 1}<br />Approximate location only; not an extracted shoreline observation.</Popup>
+              <CircleMarker
+                key={`reference-coast-point-${index}`}
+                center={position}
+                radius={5}
+                pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#f97316', fillOpacity: 1 }}
+              >
+                <Popup>
+                  <strong>Reference coastal point {index + 1}</strong><br />
+                  Approximate location for orientation only; not a satellite-extracted shoreline observation.
+                </Popup>
               </CircleMarker>
             ))}
           </>
