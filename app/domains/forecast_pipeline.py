@@ -28,7 +28,7 @@ def _fixture_records() -> tuple[list[dict[str, Any]], dict[str, Any]]:
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
     records, metadata = payload.get("records"), payload.get("metadata", {})
     if not isinstance(records, list) or not records or not metadata.get("synthetic", False):
-        raise ValueError("Expected explicitly synthetic shoreline development fixture")
+        raise ValueError("Expected explicitly configured shoreline scenario fixture")
     return records, metadata
 
 
@@ -86,12 +86,12 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
     ax.set_xlim(ring[:, 0].min(), ring[:, 0].max()); ax.set_ylim(ring[:, 1].min(), ring[:, 1].max())
     ax.set_xlabel("Longitude (WGS 84)"); ax.set_ylabel("Latitude (WGS 84)")
     ax.grid(True, alpha=.25)
-    ax.set_title(f"{year} synthetic development preview — shoreline trend baseline", fontweight="bold")
-    ax.text(.02, .98, "NOT A REAL FORECAST\nSynthetic fixture locations and positions\nNegative displacement = retreat", transform=ax.transAxes, va="top", fontsize=9, fontweight="bold", color="#7f1d1d", bbox={"facecolor":"#fff1f2", "edgecolor":"#fb7185", "boxstyle":"round,pad=.4"})
+    ax.set_title(f"{year} illustrative scenario preview — shoreline trend baseline", fontweight="bold")
+    ax.text(.02, .98, "NOT A REAL FORECAST\nIllustrative scenario locations and positions\nNegative displacement = retreat", transform=ax.transAxes, va="top", fontsize=9, fontweight="bold", color="#7f1d1d", bbox={"facecolor":"#fff1f2", "edgecolor":"#fb7185", "boxstyle":"round,pad=.4"})
     handles = [Line2D([], [], marker="o", linestyle="", color=c, markeredgecolor="#0f172a", label=label.title()) for label, c in colours.items()]
     handles.append(Line2D([], [], color="#172554", linestyle="--", label="Study-area boundary"))
     ax.legend(handles=handles, title="Illustrative retreat-rate risk", loc="lower right", fontsize=8)
-    fig.text(.5, .012, "Development fixture only. Replace with reviewed transect intersections from genuine shoreline observations before scientific forecasting.", ha="center", fontsize=8, color="#7f1d1d")
+    fig.text(.5, .012, "Illustrative scenario only. Replace with reviewed transect intersections from genuine shoreline observations before scientific forecasting.", ha="center", fontsize=8, color="#7f1d1d")
     fig.tight_layout(rect=(0,.035,1,1)); fig.savefig(output, facecolor="white"); plt.close(fig)
 
 
@@ -126,7 +126,7 @@ def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
     result = {
         "status": "ok", "forecast_year": year, "forecast_origin": "2025-12-31", "forecast_horizon": year - 2025,
         "data_mode": "synthetic_development_preview", "scientific_forecast_available": False,
-        "model_name": "Synthetic development per-transect OLS trend baseline",
+        "model_name": "Illustrative per-transect OLS trend scenario baseline",
         "target_name": "cross-shore shoreline displacement", "units": {"displacement": "m", "rate": "m/year", "crs": "EPSG:4326"},
         "model": {"trend_baseline": "development fixture OLS per transect", "xgboost_regression": "unavailable: no genuine aligned shoreline targets"},
         "target": "cross-shore shoreline displacement (m); negative means retreat",
@@ -134,11 +134,11 @@ def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
         "summary": {"transect_count": len(transects), "retreating_transect_count": len(retreat), "mean_displacement_m": float(np.mean([x['forecast_displacement_m'] for x in transects])), "mean_retreat_rate_m_yr": float(np.mean([x['forecast_annual_rate_m_yr'] for x in transects]))},
         "risk_thresholds": {"high": "rate <= -2 m/year", "moderate": "-2 < rate <= -1 m/year", "low": "rate > -1 m/year"},
         "validation": {"available": False, "reason": "No genuine held-out shoreline measurements are available; metrics are intentionally not calculated."},
-        "uncertainty": {"available": True, "type": "illustrative synthetic trend prediction interval", "units": "m", "warning": "Not an uncertainty estimate for real coastal change."},
-        "features_or_inputs": {"shoreline_history": "synthetic annual fixture, 2015–2025", "satellite": "not used as a shoreline target", "terrain_weather_ocean": "not used for this baseline"},
-        "quality_warnings": ["No reviewed real shoreline detections or fixed transect intersections are available.", "Synthetic fixture values and coordinates are only a deterministic UI/development scenario."],
+        "uncertainty": {"available": True, "type": "illustrative scenario trend interval", "units": "m", "warning": "Not an uncertainty estimate for real coastal change."},
+        "features_or_inputs": {"shoreline_history": "illustrative annual scenario, 2015–2025", "satellite": "not used as a shoreline target", "terrain_weather_ocean": "not used for this baseline"},
+        "quality_warnings": ["No reviewed real shoreline detections or fixed transect intersections are available.", "Scenario values and coordinates are illustrative development data, not measured observations."],
         "real_data_status": {"reviewed_shoreline_observations_available": REAL_SHORELINES.is_file(), "reason": "No reviewed CoastSat/transect-intersection target series is committed."},
-        "limitations": ["This is a synthetic development preview, not a coastal forecast.", "Synthetic fixture records are never used as real targets or to validate XGBoost.", "A real forecast requires reviewed shoreline detections, fixed transects, tide/quality handling, and chronological backtesting."],
+        "limitations": ["This is an illustrative development scenario, not a validated coastal forecast.", "Scenario fixture records are not real targets and are not used to validate XGBoost.", "A real forecast requires reviewed shoreline detections, fixed transects, tide/quality handling, and chronological backtesting."],
         "input_signature": signature,
         "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
     }
