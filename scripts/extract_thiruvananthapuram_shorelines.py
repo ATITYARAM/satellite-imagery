@@ -16,6 +16,7 @@ import datetime as dt
 import json
 import logging
 import os
+import random
 import sys
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,7 @@ EXTERNAL_ROOT = Path(os.environ.get(
     "COASTSAT_DATA_DIR",
     str(ROOT / "data_external" / "shoreline_history" / "thiruvananthapuram"),
 )).expanduser().resolve()
-DEFAULT_START = "2010-01-01"
+DEFAULT_START = "2015-01-01"
 DEFAULT_END_EXCLUSIVE = "2026-01-01"
 DEFAULT_EPSG = 32643  # UTM zone 43N, suitable for this longitude range.
 
@@ -88,7 +89,11 @@ def main() -> int:
                         help="Open interactive per-image shoreline review (recommended for the first run).")
     parser.add_argument("--adjust", action="store_true",
                         help="Allow manual shoreline threshold adjustment; requires interactive review.")
-    parser.add_argument("--sitename", default="Thiruvananthapuram_Coast")
+    parser.add_argument("--target-per-year", type=int, default=7,
+                        help="Target number of distinct available acquisition dates per year (default 7).")
+    parser.add_argument("--seed", type=int, default=20261028,
+                        help="Deterministic per-year date-sampling seed.")
+    parser.add_argument("--sitename", default="Thiruvananthapuram_Coast_2015_2025_7peryear")
     args = parser.parse_args()
 
     if not (0 < args.cloud_thresh <= 1):
@@ -133,9 +138,69 @@ def main() -> int:
             "Complete GEE/Google Cloud authentication first; see the domain README."
         )
 
-    metadata = SDS_download.retrieve_images(inputs)
+    if args.target_per_year < 1:
+        parser.error("--target-per-year must be at least 1.")
+
+    # Query available images one calendar year at a time, then download only
+    # the selected dates. CoastSat's retrieve_images() otherwise downloads
+    # every eligible scene in the full date range.
+    selected_dates: list[str] = []
+    annual_sampling: list[dict[str, Any]] = []
+    for year in range(start.year, (end - dt.timedelta(days=1)).year + 1):
+        year_start = max(start, dt.date(year, 1, 1))
+        year_end = min(end, dt.date(year + 1, 1, 1))
+        if year_start >= year_end:
+            continue
+        year_inputs = dict(inputs)
+        year_inputs["dates"] = [year_start.isoformat(), year_end.isoformat()]
+        logging.info("Checking available shoreline imagery for %d", year)
+        tier1, _tier2 = SDS_download.check_images_available(year_inputs)
+        available_dates: set[str] = set()
+        for sat in inputs["sat_list"]:
+            for image in tier1.get(sat, []):
+                timestamp = image.get("properties", {}).get("system:time_start")
+                if timestamp is None:
+                    continue
+                acquired = dt.datetime.fromtimestamp(timestamp / 1000, tz=dt.timezone.utc).date()
+                if year_start <= acquired < year_end:
+                    available_dates.add(acquired.isoformat())
+        ordered_dates = sorted(available_dates)
+        rng = random.Random(args.seed + year)
+        chosen = sorted(rng.sample(ordered_dates, min(args.target_per_year, len(ordered_dates))))
+        selected_dates.extend(chosen)
+        annual_sampling.append({
+            "year": year,
+            "available_unique_dates": len(ordered_dates),
+            "target_unique_dates": args.target_per_year,
+            "selected_unique_dates": len(chosen),
+            "shortfall": max(0, args.target_per_year - len(chosen)),
+            "selected_dates": chosen,
+        })
+        logging.info("%d: %d available dates; selected %d", year, len(ordered_dates), len(chosen))
+
+    if not selected_dates:
+        raise RuntimeError("CoastSat found no available acquisition dates in the requested period.")
+
+    retrieval_failures: list[dict[str, str]] = []
+    for index, selected_date in enumerate(selected_dates, start=1):
+        date_end = (dt.date.fromisoformat(selected_date) + dt.timedelta(days=1)).isoformat()
+        date_inputs = dict(inputs)
+        date_inputs["dates"] = [selected_date, date_end]
+        logging.info("Retrieving selected date %d/%d: %s", index, len(selected_dates), selected_date)
+        try:
+            SDS_download.retrieve_images(date_inputs)
+        except Exception as exc:
+            logging.exception("CoastSat retrieval failed for %s", selected_date)
+            retrieval_failures.append({
+                "date": selected_date,
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+
+    # Reload metadata from the site folder so the extraction includes every
+    # selected date that was successfully downloaded, including resumed files.
+    metadata = SDS_download.get_metadata(inputs)
     if not metadata or not any(metadata.get(sat, {}).get("filenames") for sat in inputs["sat_list"]):
-        raise RuntimeError("CoastSat found no downloadable images for this AOI and date range.")
+        raise RuntimeError("CoastSat downloaded no images for the selected dates.")
 
     settings = {
         "cloud_thresh": args.cloud_thresh,
@@ -178,6 +243,11 @@ def main() -> int:
         "aoi_name": aoi_fc["features"][0].get("properties", {}).get("name"),
         "date_range": {"start_inclusive": args.start_date, "end_exclusive": args.end_date},
         "satellite_missions_requested": inputs["sat_list"],
+        "target_unique_dates_per_year": args.target_per_year,
+        "sampling_seed": args.seed,
+        "annual_sampling": annual_sampling,
+        "selected_acquisition_dates": selected_dates,
+        "retrieval_failures": retrieval_failures,
         "output_epsg_for_extraction": args.output_epsg,
         "cloud_thresh": args.cloud_thresh,
         "dist_clouds_m": args.dist_clouds,
