@@ -738,3 +738,52 @@ button, a { font: inherit; }
   .domain-summary-table { min-width: 780px; }
   .domain-summary-table th, .domain-summary-table td { padding: 10px; }
 }
+
+
+/* Final polish: compact, readable domain inventory with clear provenance. */
+.result-domain-table-section { width: 100%; max-width: 1480px; margin: 0 auto 14px; min-width: 0; }
+.result-domain-table-card { padding: 20px; min-width: 0; overflow: hidden; }
+.result-domain-table-card .clean-map-header { align-items: flex-start; gap: 18px; }
+.result-domain-table-card .clean-map-header > div { min-width: 0; }
+.result-domain-table-card .clean-map-header strong { display: block; margin-top: 5px; font-size: 1.08rem; line-height: 1.35; }
+.result-domain-table-card .clean-map-header p { max-width: 760px; margin-top: 7px; line-height: 1.55; }
+.domain-table-summary { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin: 18px 0 14px; }
+.domain-table-summary > div { display: grid; gap: 5px; min-width: 0; padding: 12px 14px; border: 1px solid rgba(51,65,85,.7); border-radius: 10px; background: rgba(15,23,42,.45); }
+.domain-table-summary span { color: #94a3b8; font-size: .7rem; }
+.domain-table-summary strong { color: #f8fafc; font-size: 1.1rem; font-weight: 750; }
+.domain-table-summary strong small { color: #94a3b8; font-size: .72rem; font-weight: 500; }
+.domain-table-scroll { width: 100%; overflow-x: auto; border: 1px solid rgba(51,65,85,.65); border-radius: 10px; margin-top: 0; }
+.domain-summary-table { width: 100%; min-width: 880px; border-collapse: separate; border-spacing: 0; text-align: left; }
+.domain-summary-table thead { background: rgba(30,41,59,.82); }
+.domain-summary-table th, .domain-summary-table td { padding: 14px 13px; border-bottom: 1px solid rgba(51,65,85,.55); vertical-align: top; font-size: .75rem; line-height: 1.55; }
+.domain-summary-table thead th { color: #94a3b8; font-size: .65rem; font-weight: 750; letter-spacing: .055em; text-transform: uppercase; white-space: nowrap; }
+.domain-summary-table tbody th { width: 175px; color: #e2e8f0; font-weight: 650; }
+.domain-summary-table tbody td { color: #cbd5e1; }
+.domain-summary-table tbody td:nth-child(2) { min-width: 135px; }
+.domain-summary-table tbody td:nth-child(3) { min-width: 110px; }
+.domain-summary-table tbody td:nth-child(4) { min-width: 280px; max-width: 430px; }
+.domain-summary-table tbody td:nth-child(5) { min-width: 145px; }
+.domain-summary-table tbody tr:last-child th, .domain-summary-table tbody tr:last-child td { border-bottom: 0; }
+.domain-summary-table tbody tr:hover { background: rgba(30,41,59,.32); }
+.domain-table-name { display: inline-flex; align-items: flex-start; gap: 9px; }
+.domain-table-name svg { color: #38bdf8; flex: 0 0 auto; margin-top: 2px; }
+.domain-table-name > span { display: grid; gap: 3px; }
+.domain-table-name small, .domain-cell-note { display: block; color: #64748b; font-size: .64rem; font-weight: 500; line-height: 1.4; }
+.domain-summary-table td > strong { color: #f1f5f9; font-size: .8rem; }
+.domain-data-status { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 8px; font-size: .64rem; line-height: 1.35; white-space: normal; }
+.domain-data-status.real { color: #7dd3fc; background: rgba(14,165,233,.12); border: 1px solid rgba(56,189,248,.3); }
+.domain-data-status.scenario { color: #fcd34d; background: rgba(245,158,11,.09); border: 1px solid rgba(245,158,11,.25); }
+.domain-table-footnote { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 10px; align-items: start; margin-top: 14px; padding: 12px 14px; border: 1px solid rgba(56,189,248,.18); border-radius: 9px; background: rgba(8,47,73,.18); }
+.domain-table-footnote > span { display: inline-flex; align-items: center; gap: 7px; color: #7dd3fc; font-size: .7rem; font-weight: 750; white-space: nowrap; }
+.domain-table-footnote p { margin: 0; color: #94a3b8; font-size: .69rem; line-height: 1.55; }
+@media (max-width: 760px) {
+  .result-domain-table-card { padding: 12px; }
+  .domain-table-summary { gap: 7px; }
+  .domain-table-summary > div { padding: 10px; }
+  .domain-table-summary strong { font-size: .95rem; }
+  .domain-table-footnote { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 480px) {
+  .domain-table-summary { grid-template-columns: minmax(0,1fr); }
+  .result-domain-table-card .clean-map-header { flex-direction: column; }
+}
