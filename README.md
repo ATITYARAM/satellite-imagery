@@ -19,6 +19,18 @@ The complete project will use five independent domains:
 
 Each domain will be implemented independently and will later provide a standardized output for the combined ML stage.
 
+Domain data is kept in separate folders. The existing satellite archive remains at `data/satellite/` for compatibility with current scripts; shoreline history is being added at `data/shoreline_history/`. The remaining domain folders will be introduced as those domains are planned.
+
+| Domain | Dataset folder | Current status |
+|---|---|---|
+| Satellite imagery | `data/satellite/` | Catalogue/sampling workflow committed; local execution required to generate the archive |
+| Shoreline history | `data/shoreline_history/` | CoastSat extraction workflow committed; GEE authentication and local execution required |
+| Terrain | `data/terrain/` | Planned |
+| Rainfall / weather | `data/rainfall_weather/` | Planned |
+| Ocean conditions | `data/ocean_conditions/` | Planned |
+
+See [Domain 2: Shoreline History](data/shoreline_history/thiruvananthapuram/README.md) for CoastSat installation, Google Earth Engine setup, and extraction instructions.
+
 ## Thiruvananthapuram coastal archive (2010–2025)
 
 The multi-year archive uses the existing coastal study polygon in `config/aoi.geojson` (Shanghumugham–Valiyathura–Poonthura). It does **not** use a city-wide municipal boundary. The sampler queries real Landsat Collection 2 Level-2 and Sentinel-2 Level-2A items from Microsoft Planetary Computer, then selects up to 50 **distinct UTC acquisition dates per year** using fixed seed `20261028`.
