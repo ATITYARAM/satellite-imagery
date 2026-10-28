@@ -154,10 +154,23 @@ def main() -> int:
         year_inputs = dict(inputs)
         year_inputs["dates"] = [year_start.isoformat(), year_end.isoformat()]
         logging.info("Checking available shoreline imagery for %d", year)
-        tier1, _tier2 = SDS_download.check_images_available(year_inputs)
+        # Query the Tier-1 collections directly instead of check_images_available(),
+        # which removes already-downloaded dates and would make reruns select new dates.
+        collection_ids = {
+            "L5": "LANDSAT/LT05/C02/T1_TOA",
+            "L7": "LANDSAT/LE07/C02/T1_TOA",
+            "L8": "LANDSAT/LC08/C02/T1_TOA",
+            "L9": "LANDSAT/LC09/C02/T1_TOA",
+            "S2": "COPERNICUS/S2_HARMONIZED",
+        }
         available_dates: set[str] = set()
         for sat in inputs["sat_list"]:
-            for image in tier1.get(sat, []):
+            images = SDS_download.get_image_info(
+                collection_ids[sat], sat, polygon, year_inputs["dates"]
+            )
+            if sat == "S2":
+                images = SDS_download.filter_S2_collection(images)
+            for image in images:
                 timestamp = image.get("properties", {}).get("system:time_start")
                 if timestamp is None:
                     continue
