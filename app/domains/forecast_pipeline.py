@@ -67,33 +67,92 @@ def _fit_trend(records: list[dict[str, Any]], year: int) -> dict[str, Any]:
 
 
 def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) -> None:
+    """Render a clean, geographic scenario map without modifying the proxy map."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
+    from matplotlib.patches import Rectangle
 
     aoi = json.loads(AOI.read_text(encoding="utf-8"))
-    ring = np.asarray(aoi["features"][0]["geometry"]["coordinates"][0])
-    colours = {"low": "#38a169", "moderate": "#f6ad55", "high": "#e53e3e"}
-    fig, ax = plt.subplots(figsize=(10.8, 8.2), dpi=160, facecolor="white")
-    ax.set_facecolor("#eef3f5")
-    ax.fill(ring[:, 0], ring[:, 1], color="#f8fafc", zorder=0)
-    ax.plot(ring[:, 0], ring[:, 1], "--", color="#172554", linewidth=1.5, label="Study-area boundary")
-    for item in transects:
-        color = colours[item["risk_category"]]
-        ax.scatter(item["lon"], item["lat"], s=90, color=color, edgecolor="#0f172a", linewidth=.7, zorder=3)
-        ax.annotate(f"{item['transect_id']}\n{item['forecast_displacement_m']:+.1f} m", (item["lon"], item["lat"]), xytext=(5, 6), textcoords="offset points", fontsize=7, zorder=4)
-    ax.set_xlim(ring[:, 0].min(), ring[:, 0].max()); ax.set_ylim(ring[:, 1].min(), ring[:, 1].max())
-    ax.set_xlabel("Longitude (WGS 84)"); ax.set_ylabel("Latitude (WGS 84)")
-    ax.grid(True, alpha=.25)
-    ax.set_title(f"{year} illustrative scenario preview — shoreline trend baseline", fontweight="bold")
-    ax.text(.02, .98, "NOT A REAL FORECAST\nIllustrative scenario locations and positions\nNegative displacement = retreat", transform=ax.transAxes, va="top", fontsize=9, fontweight="bold", color="#7f1d1d", bbox={"facecolor":"#fff1f2", "edgecolor":"#fb7185", "boxstyle":"round,pad=.4"})
-    handles = [Line2D([], [], marker="o", linestyle="", color=c, markeredgecolor="#0f172a", label=label.title()) for label, c in colours.items()]
-    handles.append(Line2D([], [], color="#172554", linestyle="--", label="Study-area boundary"))
-    ax.legend(handles=handles, title="Illustrative retreat-rate risk", loc="lower right", fontsize=8)
-    fig.text(.5, .012, "Illustrative scenario only. Replace with reviewed transect intersections from genuine shoreline observations before scientific forecasting.", ha="center", fontsize=8, color="#7f1d1d")
-    fig.tight_layout(rect=(0,.035,1,1)); fig.savefig(output, facecolor="white"); plt.close(fig)
+    ring = np.asarray(aoi["features"][0]["geometry"]["coordinates"][0], dtype=float)
+    min_lon, min_lat = ring.min(axis=0)
+    max_lon, max_lat = ring.max(axis=0)
+    mean_lat = float((min_lat + max_lat) / 2)
+    # Approximate local scale in longitude degrees at the AOI latitude.
+    km_per_lon_degree = 111.32 * math.cos(math.radians(mean_lat))
+    scale_2km_lon = 2.0 / km_per_lon_degree
 
+    colours = {"low": "#16803c", "moderate": "#d97706", "high": "#dc2626"}
+    fig, ax = plt.subplots(figsize=(12, 9), dpi=180, facecolor="#f8fafc")
+    fig.subplots_adjust(left=.10, right=.97, top=.90, bottom=.13)
+    ax.set_facecolor("#edf4f7")
+
+    # AOI mask/background: explicitly show the study boundary, not an invented coastline.
+    ax.fill(ring[:, 0], ring[:, 1], color="#f8fafc", zorder=0)
+    ax.plot(ring[:, 0], ring[:, 1], color="#334155", linewidth=1.8, zorder=1, label="Study-area boundary")
+
+    # Draw a restrained, labelled geographic grid.
+    ax.set_xlim(min_lon, max_lon)
+    ax.set_ylim(min_lat, max_lat)
+    ax.set_xticks(np.linspace(min_lon, max_lon, 6))
+    ax.set_yticks(np.linspace(min_lat, max_lat, 6))
+    ax.grid(True, color="#94a3b8", linewidth=.6, alpha=.45, zorder=0)
+    ax.tick_params(labelsize=8, colors="#334155")
+
+    # Show forecast locations only; do not imply that points are a measured shoreline.
+    for item in sorted(transects, key=lambda row: row["transect_id"]):
+        color = colours[item["risk_category"]]
+        ax.scatter(item["lon"], item["lat"], s=115, color=color, edgecolor="white",
+                   linewidth=1.4, zorder=4)
+        ax.annotate(
+            f'{item["transect_id"]}  {item["forecast_displacement_m"]:+.1f} m',
+            (item["lon"], item["lat"]), xytext=(7, 7), textcoords="offset points",
+            fontsize=8, color="#0f172a", fontweight="semibold", zorder=5,
+            bbox={"boxstyle": "round,pad=.25", "facecolor": "white", "edgecolor": "#cbd5e1", "alpha": .94},
+        )
+
+    # Approximate 2 km scale bar, appropriate for this small geographic extent.
+    bar_x = min_lon + (max_lon - min_lon) * .055
+    bar_y = min_lat + (max_lat - min_lat) * .065
+    ax.plot([bar_x, bar_x + scale_2km_lon], [bar_y, bar_y], color="#0f172a",
+            linewidth=4, solid_capstyle="butt", zorder=6)
+    ax.plot([bar_x, bar_x], [bar_y - .0007, bar_y + .0007], color="#0f172a", linewidth=1.5, zorder=6)
+    ax.plot([bar_x + scale_2km_lon, bar_x + scale_2km_lon],
+            [bar_y - .0007, bar_y + .0007], color="#0f172a", linewidth=1.5, zorder=6)
+    ax.text(bar_x + scale_2km_lon / 2, bar_y + .0016, "2 km (approx.)",
+            ha="center", va="bottom", fontsize=8, color="#0f172a", fontweight="bold",
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": .85, "pad": 2}, zorder=7)
+
+    # North arrow.
+    arrow_x = max_lon - (max_lon - min_lon) * .075
+    arrow_y = max_lat - (max_lat - min_lat) * .12
+    ax.annotate("N", xy=(arrow_x, arrow_y), xytext=(arrow_x, arrow_y - .012),
+                ha="center", va="center", fontsize=10, fontweight="bold",
+                arrowprops={"arrowstyle": "-|>", "color": "#0f172a", "lw": 1.5}, zorder=7)
+
+    handles = [
+        Line2D([], [], marker="o", linestyle="", color=colours["low"], markeredgecolor="white", label="Lower scenario rate"),
+        Line2D([], [], marker="o", linestyle="", color=colours["moderate"], markeredgecolor="white", label="Moderate scenario rate"),
+        Line2D([], [], marker="o", linestyle="", color=colours["high"], markeredgecolor="white", label="Higher scenario rate"),
+        Line2D([], [], color="#334155", linewidth=1.8, label="Study-area boundary"),
+    ]
+    ax.legend(handles=handles, loc="upper left", frameon=True, framealpha=.97,
+              facecolor="white", edgecolor="#cbd5e1", fontsize=8, title="Map key", title_fontsize=9)
+
+    ax.set_xlabel("Longitude (WGS 84)", fontsize=9, labelpad=8)
+    ax.set_ylabel("Latitude (WGS 84)", fontsize=9, labelpad=8)
+    ax.set_title(f"Thiruvananthapuram Coast — {year} Shoreline Scenario",
+                 loc="left", fontsize=15, fontweight="bold", color="#0f172a", pad=18)
+    ax.text(0, 1.015,
+            "Scenario locations and trend estimates • Forecast origin: end of 2025 • Negative displacement = retreat",
+            transform=ax.transAxes, fontsize=9, color="#475569", va="bottom")
+    fig.text(.10, .045,
+             "Illustrative scenario, not a real-time observation or validated erosion forecast. "
+             "The boundary is the configured study area; no coastline is inferred.",
+             fontsize=8, color="#475569", ha="left", va="bottom", wrap=True)
+    fig.savefig(output, facecolor=fig.get_facecolor(), bbox_inches="tight")
+    plt.close(fig)
 
 def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
     if year not in (2026, 2027):
