@@ -19,6 +19,26 @@ The complete project will use five independent domains:
 
 Each domain will be implemented independently and will later provide a standardized output for the combined ML stage.
 
+## Thiruvananthapuram coastal archive (2010–2025)
+
+The multi-year archive uses the existing coastal study polygon in `config/aoi.geojson` (Shanghumugham–Valiyathura–Poonthura). It does **not** use a city-wide municipal boundary. The sampler queries real Landsat Collection 2 Level-2 and Sentinel-2 Level-2A items from Microsoft Planetary Computer, then selects up to 50 **distinct UTC acquisition dates per year** using fixed seed `20261028`.
+
+From the repository root, activate the project environment and run:
+
+```bash
+python scripts/sample_thiruvananthapuram_satellite.py
+```
+
+This catalogues scenes and creates the reproducible date selection and annual shortfall report without downloading raster assets. Review `data/satellite/thiruvananthapuram_2010_2025/metadata/annual_coverage.csv` and `catalog/selected_dates.csv`. If the catalogue reports failed queries, rerun the script and do not treat that year's shortfall as confirmed.
+
+To download and clip the selected scene's available optical bands and quality layer for every selected date:
+
+```bash
+python scripts/sample_thiruvananthapuram_satellite.py --download
+```
+
+Raster outputs go to `data_external/thiruvananthapuram_2010_2025/`, which is ignored by Git. Only code, the selected-date manifest, catalogue metadata, query log, and download log should be committed. The workflow never fabricates missing dates, does not exclude cloudy scenes, and records when a year has fewer than 50 real dates. It selects one best-reported-cloud-cover scene per chosen date; the selected date count is not the same as the scene-product count.
+
 ## Satellite data: fetch the new AOI
 
 The committed imagery was downloaded for the previous Chennai study area and must not be reused for Thiruvananthapuram. From the repository root, activate the project's Python environment, then run:
