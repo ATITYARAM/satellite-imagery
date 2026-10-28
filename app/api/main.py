@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from pathlib import Path
 
@@ -14,6 +15,8 @@ DIST_DIR = ROOT / 'dist'
 DOCS_DIR = ROOT / 'docs'
 AOI_PATH = ROOT / 'config' / 'aoi.geojson'
 DATA_ROOT = ROOT / 'data' / 'satellite'
+ARCHIVE_ROOT = ROOT / 'data_external' / 'thiruvananthapuram_2015_2025'
+ARCHIVE_CATALOG = ROOT / 'data' / 'satellite' / 'thiruvananthapuram_2015_2025' / 'catalog' / 'selected_dates.csv'
 
 def current_aoi_bounds():
     if not AOI_PATH.exists():
@@ -43,6 +46,71 @@ def project_info():
 @app.get('/domains')
 def domains():
     return ['satellite', 'history', 'terrain', 'weather', 'ocean', 'prediction', 'result']
+
+@app.get('/satellite/archive-preview/{year}.png')
+def satellite_archive_preview(year: int):
+    """Render the first selected 2015 scene or last selected 2025 scene from the 55-date archive."""
+    if year not in (2015, 2025):
+        raise HTTPException(status_code=404, detail='Only the 2015 and 2025 archive endpoints are available')
+
+    if not ARCHIVE_CATALOG.is_file():
+        raise HTTPException(status_code=404, detail='The 2015–2025 selected-date catalogue is missing')
+
+    with ARCHIVE_CATALOG.open('r', encoding='utf-8', newline='') as handle:
+        rows = [row for row in csv.DictReader(handle) if int(row.get('year', 0)) == year]
+
+    if not rows:
+        raise HTTPException(status_code=404, detail=f'No selected acquisition dates for {year}')
+
+    rows.sort(key=lambda row: row.get('acquisition_date_utc', ''))
+    selected = rows[0] if year == 2015 else rows[-1]
+    date = selected['acquisition_date_utc']
+    collection = selected['collection_id']
+    item_id = selected['item_id']
+    scene_dir = ARCHIVE_ROOT / str(year) / date / collection / item_id
+
+    # Download logs can be used when the folder layout differs slightly.
+    if not scene_dir.is_dir():
+        matches = list((ARCHIVE_ROOT / str(year)).glob(f'*/{collection}/{item_id}'))
+        if matches:
+            scene_dir = matches[0]
+
+    band_paths = [scene_dir / name for name in ('red.tif', 'green.tif', 'blue.tif')]
+    if not all(path.is_file() for path in band_paths):
+        raise HTTPException(
+            status_code=404,
+            detail=f'Archive scene {item_id} ({date}) is not fully downloaded; missing RGB bands in {scene_dir}',
+        )
+
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import rasterio
+
+    bands = []
+    for path in band_paths:
+        with rasterio.open(path) as source:
+            values = source.read(1).astype('float32')
+            nodata = source.nodata
+        valid = np.isfinite(values)
+        if nodata is not None:
+            valid &= values != nodata
+        valid &= values > 0
+        if not np.any(valid):
+            raise HTTPException(status_code=422, detail=f'No valid pixels in {path.name}')
+        scaled = np.zeros_like(values, dtype='float32')
+        low, high = np.percentile(values[valid], (2, 98))
+        scaled[valid] = np.clip((values[valid] - low) / max(high - low, 1e-6), 0.0, 1.0)
+        bands.append(scaled)
+
+    rgb = np.stack(bands, axis=-1)
+    output_dir = ROOT / 'data' / 'satellite' / 'archive_previews'
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f'{year}_{date}_rgb.png'
+    plt.imsave(output_path, rgb, format='png')
+    return FileResponse(output_path, media_type='image/png', headers={'Cache-Control': 'no-store'})
+
 
 @app.get('/satellite/data')
 def satellite_data():
