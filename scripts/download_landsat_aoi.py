@@ -35,7 +35,9 @@ BANDS = {
 }
 PLATFORMS = {
     2015: ("landsat-8",),
+    2016: ("landsat-8",),
     2025: ("landsat-9", "landsat-8"),
+    2026: ("landsat-9", "landsat-8"),
 }
 
 
