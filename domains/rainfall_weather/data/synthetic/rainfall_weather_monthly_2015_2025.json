@@ -1,6 +1,36 @@
 {
   "metadata": {
-    "0": {
+    "data_origin": "SYNTHETIC",
+    "synthetic": true,
+    "generator_version": "2.0.0",
+    "seed": 20261028,
+    "domain": "rainfall_weather",
+    "study_area": "Shanghumugham–Valiyathura–Poonthura coast, Thiruvananthapuram, Kerala, India",
+    "date_range": {
+      "start": "2015-01-01",
+      "end": "2025-12-31"
+    },
+    "temporal_resolution": "monthly summaries, not daily observations",
+    "units": {
+      "rainfall_mm": "mm/month",
+      "rainfall_mean_mm_day": "mm/day monthly mean",
+      "max_daily_rainfall_mm": "illustrative mm/day",
+      "rainfall_7d_proxy_mm": "scaled monthly mean, not rolling sum",
+      "rainfall_30d_proxy_mm": "scaled monthly mean, not rolling sum",
+      "wind_speed_kmh": "km/h",
+      "wind_dir_deg": "degrees from north",
+      "temp_c": "degrees Celsius",
+      "pressure_hpa": "hPa"
+    },
+    "record_count": 140,
+    "limitations": [
+      "Synthetic software/model-pipeline fixture only; not measured field data or official agency records.",
+      "Monthly values are not daily/hourly observations. Rainfall 7/30-day fields are proxies, not actual rolling sums.",
+      "Not calibrated to local station data; do not use as a validated forecast."
+    ]
+  },
+  "records": [
+    {
       "year": 2015,
       "month": 1,
       "date": "2015-01-15",
@@ -17,7 +47,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "1": {
+    {
       "year": 2015,
       "month": 2,
       "date": "2015-02-15",
@@ -34,7 +64,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "2": {
+    {
       "year": 2015,
       "month": 3,
       "date": "2015-03-15",
@@ -51,7 +81,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "3": {
+    {
       "year": 2015,
       "month": 4,
       "date": "2015-04-15",
@@ -68,7 +98,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "4": {
+    {
       "year": 2015,
       "month": 5,
       "date": "2015-05-15",
@@ -85,7 +115,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "5": {
+    {
       "year": 2015,
       "month": 6,
       "date": "2015-06-15",
@@ -102,7 +132,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "6": {
+    {
       "year": 2015,
       "month": 7,
       "date": "2015-07-15",
@@ -119,7 +149,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "7": {
+    {
       "year": 2015,
       "month": 8,
       "date": "2015-08-15",
@@ -136,7 +166,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "8": {
+    {
       "year": 2015,
       "month": 9,
       "date": "2015-09-15",
@@ -153,7 +183,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "9": {
+    {
       "year": 2015,
       "month": 10,
       "date": "2015-10-15",
@@ -170,7 +200,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "10": {
+    {
       "year": 2015,
       "month": 11,
       "date": "2015-11-15",
@@ -187,7 +217,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "11": {
+    {
       "year": 2015,
       "month": 12,
       "date": "2015-12-15",
@@ -204,7 +234,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "12": {
+    {
       "year": 2016,
       "month": 1,
       "date": "2016-01-15",
@@ -221,7 +251,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "13": {
+    {
       "year": 2016,
       "month": 2,
       "date": "2016-02-15",
@@ -238,7 +268,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "14": {
+    {
       "year": 2016,
       "month": 3,
       "date": "2016-03-15",
@@ -255,7 +285,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "15": {
+    {
       "year": 2016,
       "month": 4,
       "date": "2016-04-15",
@@ -272,7 +302,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "16": {
+    {
       "year": 2016,
       "month": 5,
       "date": "2016-05-15",
@@ -289,7 +319,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "17": {
+    {
       "year": 2016,
       "month": 6,
       "date": "2016-06-15",
@@ -306,7 +336,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "18": {
+    {
       "year": 2016,
       "month": 7,
       "date": "2016-07-15",
@@ -323,7 +353,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "19": {
+    {
       "year": 2016,
       "month": 8,
       "date": "2016-08-15",
@@ -340,7 +370,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "20": {
+    {
       "year": 2016,
       "month": 9,
       "date": "2016-09-15",
@@ -357,7 +387,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "21": {
+    {
       "year": 2016,
       "month": 10,
       "date": "2016-10-15",
@@ -374,7 +404,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "22": {
+    {
       "year": 2016,
       "month": 11,
       "date": "2016-11-15",
@@ -391,7 +421,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "23": {
+    {
       "year": 2016,
       "month": 12,
       "date": "2016-12-15",
@@ -408,7 +438,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "24": {
+    {
       "year": 2017,
       "month": 1,
       "date": "2017-01-15",
@@ -425,7 +455,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "25": {
+    {
       "year": 2017,
       "month": 2,
       "date": "2017-02-15",
@@ -442,7 +472,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "26": {
+    {
       "year": 2017,
       "month": 3,
       "date": "2017-03-15",
@@ -459,7 +489,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "27": {
+    {
       "year": 2017,
       "month": 4,
       "date": "2017-04-15",
@@ -476,7 +506,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "28": {
+    {
       "year": 2017,
       "month": 5,
       "date": "2017-05-15",
@@ -493,7 +523,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "29": {
+    {
       "year": 2017,
       "month": 6,
       "date": "2017-06-15",
@@ -510,7 +540,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "30": {
+    {
       "year": 2017,
       "month": 7,
       "date": "2017-07-15",
@@ -527,7 +557,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "31": {
+    {
       "year": 2017,
       "month": 8,
       "date": "2017-08-15",
@@ -544,7 +574,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "32": {
+    {
       "year": 2017,
       "month": 9,
       "date": "2017-09-15",
@@ -561,7 +591,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "33": {
+    {
       "year": 2017,
       "month": 10,
       "date": "2017-10-15",
@@ -578,7 +608,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "34": {
+    {
       "year": 2017,
       "month": 11,
       "date": "2017-11-15",
@@ -595,7 +625,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "35": {
+    {
       "year": 2017,
       "month": 12,
       "date": "2017-12-15",
@@ -612,7 +642,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "36": {
+    {
       "year": 2018,
       "month": 1,
       "date": "2018-01-15",
@@ -629,7 +659,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "37": {
+    {
       "year": 2018,
       "month": 2,
       "date": "2018-02-15",
@@ -646,7 +676,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "38": {
+    {
       "year": 2018,
       "month": 3,
       "date": "2018-03-15",
@@ -663,7 +693,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "39": {
+    {
       "year": 2018,
       "month": 4,
       "date": "2018-04-15",
@@ -680,7 +710,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "40": {
+    {
       "year": 2018,
       "month": 5,
       "date": "2018-05-15",
@@ -697,7 +727,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "41": {
+    {
       "year": 2018,
       "month": 6,
       "date": "2018-06-15",
@@ -714,7 +744,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "42": {
+    {
       "year": 2018,
       "month": 7,
       "date": "2018-07-15",
@@ -731,7 +761,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "43": {
+    {
       "year": 2018,
       "month": 8,
       "date": "2018-08-15",
@@ -748,7 +778,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "44": {
+    {
       "year": 2018,
       "month": 9,
       "date": "2018-09-15",
@@ -765,7 +795,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "45": {
+    {
       "year": 2018,
       "month": 10,
       "date": "2018-10-15",
@@ -782,7 +812,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "46": {
+    {
       "year": 2018,
       "month": 11,
       "date": "2018-11-15",
@@ -799,7 +829,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "47": {
+    {
       "year": 2018,
       "month": 12,
       "date": "2018-12-15",
@@ -816,7 +846,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "48": {
+    {
       "year": 2019,
       "month": 1,
       "date": "2019-01-15",
@@ -833,7 +863,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "49": {
+    {
       "year": 2019,
       "month": 2,
       "date": "2019-02-15",
@@ -850,7 +880,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "50": {
+    {
       "year": 2019,
       "month": 3,
       "date": "2019-03-15",
@@ -867,7 +897,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "51": {
+    {
       "year": 2019,
       "month": 4,
       "date": "2019-04-15",
@@ -884,7 +914,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "52": {
+    {
       "year": 2019,
       "month": 5,
       "date": "2019-05-15",
@@ -901,7 +931,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "53": {
+    {
       "year": 2019,
       "month": 6,
       "date": "2019-06-15",
@@ -918,7 +948,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "54": {
+    {
       "year": 2019,
       "month": 7,
       "date": "2019-07-15",
@@ -935,7 +965,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "55": {
+    {
       "year": 2019,
       "month": 8,
       "date": "2019-08-15",
@@ -952,7 +982,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "56": {
+    {
       "year": 2019,
       "month": 9,
       "date": "2019-09-15",
@@ -969,7 +999,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "57": {
+    {
       "year": 2019,
       "month": 10,
       "date": "2019-10-15",
@@ -986,7 +1016,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "58": {
+    {
       "year": 2019,
       "month": 11,
       "date": "2019-11-15",
@@ -1003,7 +1033,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "59": {
+    {
       "year": 2019,
       "month": 12,
       "date": "2019-12-15",
@@ -1020,7 +1050,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "60": {
+    {
       "year": 2020,
       "month": 1,
       "date": "2020-01-15",
@@ -1037,7 +1067,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "61": {
+    {
       "year": 2020,
       "month": 2,
       "date": "2020-02-15",
@@ -1054,7 +1084,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "62": {
+    {
       "year": 2020,
       "month": 3,
       "date": "2020-03-15",
@@ -1071,7 +1101,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "63": {
+    {
       "year": 2020,
       "month": 4,
       "date": "2020-04-15",
@@ -1088,7 +1118,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "64": {
+    {
       "year": 2020,
       "month": 5,
       "date": "2020-05-15",
@@ -1105,7 +1135,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "65": {
+    {
       "year": 2020,
       "month": 6,
       "date": "2020-06-15",
@@ -1122,7 +1152,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "66": {
+    {
       "year": 2020,
       "month": 7,
       "date": "2020-07-15",
@@ -1139,7 +1169,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "67": {
+    {
       "year": 2020,
       "month": 8,
       "date": "2020-08-15",
@@ -1156,7 +1186,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "68": {
+    {
       "year": 2020,
       "month": 9,
       "date": "2020-09-15",
@@ -1173,7 +1203,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "69": {
+    {
       "year": 2020,
       "month": 10,
       "date": "2020-10-15",
@@ -1190,7 +1220,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "70": {
+    {
       "year": 2020,
       "month": 11,
       "date": "2020-11-15",
@@ -1207,7 +1237,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "71": {
+    {
       "year": 2020,
       "month": 12,
       "date": "2020-12-15",
@@ -1224,7 +1254,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "72": {
+    {
       "year": 2021,
       "month": 1,
       "date": "2021-01-15",
@@ -1241,7 +1271,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "73": {
+    {
       "year": 2021,
       "month": 2,
       "date": "2021-02-15",
@@ -1258,7 +1288,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "74": {
+    {
       "year": 2021,
       "month": 3,
       "date": "2021-03-15",
@@ -1275,7 +1305,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "75": {
+    {
       "year": 2021,
       "month": 4,
       "date": "2021-04-15",
@@ -1292,7 +1322,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "76": {
+    {
       "year": 2021,
       "month": 5,
       "date": "2021-05-15",
@@ -1309,7 +1339,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "77": {
+    {
       "year": 2021,
       "month": 6,
       "date": "2021-06-15",
@@ -1326,7 +1356,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "78": {
+    {
       "year": 2021,
       "month": 7,
       "date": "2021-07-15",
@@ -1343,7 +1373,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "79": {
+    {
       "year": 2021,
       "month": 8,
       "date": "2021-08-15",
@@ -1360,7 +1390,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "80": {
+    {
       "year": 2021,
       "month": 9,
       "date": "2021-09-15",
@@ -1377,7 +1407,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "81": {
+    {
       "year": 2021,
       "month": 10,
       "date": "2021-10-15",
@@ -1394,7 +1424,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "82": {
+    {
       "year": 2021,
       "month": 11,
       "date": "2021-11-15",
@@ -1411,7 +1441,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "83": {
+    {
       "year": 2021,
       "month": 12,
       "date": "2021-12-15",
@@ -1428,7 +1458,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "84": {
+    {
       "year": 2022,
       "month": 1,
       "date": "2022-01-15",
@@ -1445,7 +1475,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "85": {
+    {
       "year": 2022,
       "month": 2,
       "date": "2022-02-15",
@@ -1462,7 +1492,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "86": {
+    {
       "year": 2022,
       "month": 3,
       "date": "2022-03-15",
@@ -1479,7 +1509,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "87": {
+    {
       "year": 2022,
       "month": 4,
       "date": "2022-04-15",
@@ -1496,7 +1526,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "88": {
+    {
       "year": 2022,
       "month": 5,
       "date": "2022-05-15",
@@ -1513,7 +1543,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "89": {
+    {
       "year": 2022,
       "month": 6,
       "date": "2022-06-15",
@@ -1530,7 +1560,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "90": {
+    {
       "year": 2022,
       "month": 7,
       "date": "2022-07-15",
@@ -1547,7 +1577,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "91": {
+    {
       "year": 2022,
       "month": 8,
       "date": "2022-08-15",
@@ -1564,7 +1594,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "92": {
+    {
       "year": 2022,
       "month": 9,
       "date": "2022-09-15",
@@ -1581,7 +1611,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "93": {
+    {
       "year": 2022,
       "month": 10,
       "date": "2022-10-15",
@@ -1598,7 +1628,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "94": {
+    {
       "year": 2022,
       "month": 11,
       "date": "2022-11-15",
@@ -1615,7 +1645,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "95": {
+    {
       "year": 2022,
       "month": 12,
       "date": "2022-12-15",
@@ -1632,7 +1662,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "96": {
+    {
       "year": 2023,
       "month": 1,
       "date": "2023-01-15",
@@ -1649,7 +1679,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "97": {
+    {
       "year": 2023,
       "month": 2,
       "date": "2023-02-15",
@@ -1666,7 +1696,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "98": {
+    {
       "year": 2023,
       "month": 3,
       "date": "2023-03-15",
@@ -1683,7 +1713,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "99": {
+    {
       "year": 2023,
       "month": 4,
       "date": "2023-04-15",
@@ -1700,7 +1730,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "100": {
+    {
       "year": 2023,
       "month": 5,
       "date": "2023-05-15",
@@ -1717,7 +1747,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "101": {
+    {
       "year": 2023,
       "month": 6,
       "date": "2023-06-15",
@@ -1734,7 +1764,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "102": {
+    {
       "year": 2023,
       "month": 7,
       "date": "2023-07-15",
@@ -1751,7 +1781,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "103": {
+    {
       "year": 2023,
       "month": 8,
       "date": "2023-08-15",
@@ -1768,7 +1798,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "104": {
+    {
       "year": 2023,
       "month": 9,
       "date": "2023-09-15",
@@ -1785,7 +1815,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "105": {
+    {
       "year": 2023,
       "month": 10,
       "date": "2023-10-15",
@@ -1802,7 +1832,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "106": {
+    {
       "year": 2023,
       "month": 11,
       "date": "2023-11-15",
@@ -1819,7 +1849,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "107": {
+    {
       "year": 2023,
       "month": 12,
       "date": "2023-12-15",
@@ -1836,7 +1866,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "108": {
+    {
       "year": 2024,
       "month": 1,
       "date": "2024-01-15",
@@ -1853,7 +1883,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "109": {
+    {
       "year": 2024,
       "month": 2,
       "date": "2024-02-15",
@@ -1870,7 +1900,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "110": {
+    {
       "year": 2024,
       "month": 3,
       "date": "2024-03-15",
@@ -1887,7 +1917,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "111": {
+    {
       "year": 2024,
       "month": 4,
       "date": "2024-04-15",
@@ -1904,7 +1934,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "112": {
+    {
       "year": 2024,
       "month": 5,
       "date": "2024-05-15",
@@ -1921,7 +1951,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "113": {
+    {
       "year": 2024,
       "month": 6,
       "date": "2024-06-15",
@@ -1938,7 +1968,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "114": {
+    {
       "year": 2024,
       "month": 7,
       "date": "2024-07-15",
@@ -1955,7 +1985,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "115": {
+    {
       "year": 2024,
       "month": 8,
       "date": "2024-08-15",
@@ -1972,7 +2002,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "116": {
+    {
       "year": 2024,
       "month": 9,
       "date": "2024-09-15",
@@ -1989,7 +2019,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "117": {
+    {
       "year": 2024,
       "month": 10,
       "date": "2024-10-15",
@@ -2006,7 +2036,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "118": {
+    {
       "year": 2024,
       "month": 11,
       "date": "2024-11-15",
@@ -2023,7 +2053,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "119": {
+    {
       "year": 2024,
       "month": 12,
       "date": "2024-12-15",
@@ -2040,7 +2070,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "120": {
+    {
       "year": 2025,
       "month": 1,
       "date": "2025-01-15",
@@ -2057,7 +2087,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "121": {
+    {
       "year": 2025,
       "month": 2,
       "date": "2025-02-15",
@@ -2074,7 +2104,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "122": {
+    {
       "year": 2025,
       "month": 3,
       "date": "2025-03-15",
@@ -2091,7 +2121,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "123": {
+    {
       "year": 2025,
       "month": 4,
       "date": "2025-04-15",
@@ -2108,7 +2138,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "124": {
+    {
       "year": 2025,
       "month": 5,
       "date": "2025-05-15",
@@ -2125,7 +2155,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "125": {
+    {
       "year": 2025,
       "month": 6,
       "date": "2025-06-15",
@@ -2142,7 +2172,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "126": {
+    {
       "year": 2025,
       "month": 7,
       "date": "2025-07-15",
@@ -2159,7 +2189,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "127": {
+    {
       "year": 2025,
       "month": 8,
       "date": "2025-08-15",
@@ -2176,7 +2206,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "128": {
+    {
       "year": 2025,
       "month": 9,
       "date": "2025-09-15",
@@ -2193,7 +2223,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "129": {
+    {
       "year": 2025,
       "month": 10,
       "date": "2025-10-15",
@@ -2210,7 +2240,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "130": {
+    {
       "year": 2025,
       "month": 11,
       "date": "2025-11-15",
@@ -2227,7 +2257,7 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "131": {
+    {
       "year": 2025,
       "month": 12,
       "date": "2025-12-15",
@@ -2244,33 +2274,19 @@
       "data_origin": "SYNTHETIC",
       "synthetic": true
     },
-    "data_origin": "SYNTHETIC",
-    "synthetic": true,
-    "generator_version": "2.0.0",
-    "seed": 20261028,
-    "study_area": "Shanghumugham–Valiyathura–Poonthura coast, Thiruvananthapuram, Kerala, India",
-    "date_range": {
+    "SYNTHETIC",
+    true,
+    "2.0.0",
+    20261028,
+    "Shanghumugham–Valiyathura–Poonthura coast, Thiruvananthapuram, Kerala, India",
+    {
       "start": "2015-01-01",
       "end": "2025-12-31"
     },
-    "limitations": [
+    [
       "Synthetic development fixture only; not measured field data, satellite-derived observations, or official agency records.",
       "Do not use as evidence of actual coastal erosion or as a validated forecast."
     ],
-    "domain": "rainfall_weather"
-  },
-  "records": {
-    "temporal_resolution": "monthly summaries, not daily observations",
-    "units": {
-      "rainfall_mm": "mm/month",
-      "rainfall_mean_mm_day": "mm/day monthly mean",
-      "max_daily_rainfall_mm": "illustrative mm/day",
-      "rainfall_7d_proxy_mm": "scaled monthly mean, not rolling sum",
-      "rainfall_30d_proxy_mm": "scaled monthly mean, not rolling sum",
-      "wind_speed_kmh": "km/h",
-      "wind_dir_deg": "degrees from north",
-      "temp_c": "degrees Celsius",
-      "pressure_hpa": "hPa"
-    }
-  }
+    "rainfall_weather"
+  ]
 }
