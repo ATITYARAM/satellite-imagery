@@ -118,7 +118,24 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
                     if src.nodata is not None:
                         valid &= sample != src.nodata
                     common_valid = valid if common_valid is None else (common_valid & valid)
-            coverage = float(common_valid.mean()) if common_valid is not None else 0.0
+            # Exclude clouds, cirrus, cloud shadows and snow before ranking a
+            # scene. Cloud pixels often have valid numeric RGB values, so
+            # nodata-only selection incorrectly preferred cloudy scenes.
+            qa_path = folder / "qa_pixel.tif"
+            scl_path = folder / "scene_classification.tif"
+            clear = np.ones(sample_shape, dtype=bool)
+            if qa_path.is_file():
+                with rasterio.open(qa_path) as qa_src:
+                    qa = qa_src.read(1, out_shape=sample_shape, resampling=Resampling.nearest).astype("uint16")
+                cloud_bits = np.zeros(sample_shape, dtype=bool)
+                for bit in (1, 2, 3, 4, 5):
+                    cloud_bits |= (qa & (1 << bit)) != 0
+                clear &= ~cloud_bits
+            elif scl_path.is_file():
+                with rasterio.open(scl_path) as scl_src:
+                    scl = scl_src.read(1, out_shape=sample_shape, resampling=Resampling.nearest).astype("uint8")
+                clear &= ~np.isin(scl, [0, 1, 3, 8, 9, 10, 11])
+            coverage = float((common_valid & clear).mean()) if common_valid is not None else 0.0
             if coverage > best_rgb_coverage:
                 best_rgb_coverage = coverage
                 satellite = (folder, scene_crs, scene_transform, scene_width, scene_height, bounds, coverage)
@@ -153,6 +170,21 @@ def _render_preview(year: int, transects: list[dict[str, Any]], output: Path) ->
                 else:
                     arr[:] = 0
                 rgb.append(arr)
+        # Apply the scene QA mask to the rendered RGB alpha channel so cloud
+        # pixels become transparent and reveal the clean map background.
+        qa_path = folder / "qa_pixel.tif"
+        scl_path = folder / "scene_classification.tif"
+        if rgb_valid is not None and qa_path.is_file():
+            with rasterio.open(qa_path) as qa_src:
+                qa = qa_src.read(1, out_shape=rgb_valid.shape, resampling=Resampling.nearest).astype("uint16")
+            cloudy = np.zeros(rgb_valid.shape, dtype=bool)
+            for bit in (1, 2, 3, 4, 5):
+                cloudy |= (qa & (1 << bit)) != 0
+            rgb_valid &= ~cloudy
+        elif rgb_valid is not None and scl_path.is_file():
+            with rasterio.open(scl_path) as scl_src:
+                scl = scl_src.read(1, out_shape=rgb_valid.shape, resampling=Resampling.nearest).astype("uint8")
+            rgb_valid &= ~np.isin(scl, [0, 1, 3, 8, 9, 10, 11])
         image = np.dstack([*rgb, rgb_valid.astype("float32") if rgb_valid is not None else np.ones_like(rgb[0])])
         with rasterio.open(folder / "red.tif") as src:
             image_extent = (src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top)
@@ -297,7 +329,7 @@ def run_forecast(year: int, force: bool = False) -> dict[str, Any]:
     if year not in (2026, 2027):
         raise ValueError("Forecast year must be 2026 or 2027")
     records, metadata = _fixture_records()
-    signature = hashlib.sha256(FIXTURE.read_bytes() + b"|coastal-framing-rgb-coverage-snap-v5").hexdigest()
+    signature = hashlib.sha256(FIXTURE.read_bytes() + b"|coastal-framing-rgb-clear-sky-v6").hexdigest()
     year_dir = OUTPUT_DIR / str(year)
     year_dir.mkdir(parents=True, exist_ok=True)
     output, result_path, geojson_path = year_dir / "forecast_map.png", year_dir / "forecast.json", year_dir / "transects.geojson"
