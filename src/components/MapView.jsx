@@ -229,7 +229,7 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
             </>
           ) : (
             <p role="status" style={{ margin: '8px 0 0', color: '#fde68a' }}>
-              Real shoreline output not generated yet. Synthetic history data
+              Real shoreline output is not generated yet. Illustrative historical scenario data
               is not displayed as a real shoreline layer.
             </p>
           )}
