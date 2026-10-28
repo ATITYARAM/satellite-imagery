@@ -28,6 +28,24 @@ const DOMAIN_CONFIG = {
   },
 };
 
+function featureYear(feature) {
+  const properties = feature?.properties || {};
+  const candidates = [
+    properties.date, properties.datetime, properties.acquisition_date,
+    properties.acquisition_datetime, properties.timestamp, properties.time,
+    properties.year,
+  ];
+  for (const value of candidates) {
+    if (value == null || value === '') continue;
+    const match = String(value).match(/(?:19|20)\\d{2}/);
+    if (match) {
+      const year = Number(match[0]);
+      if (year >= 1900 && year <= 2100) return year;
+    }
+  }
+  return null;
+}
+
 function fmt(value, digits = 1) {
   return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : '—';
 }
@@ -154,6 +172,8 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
   const [satelliteData, setSatelliteData] = useState(null);
   const [shorelineData, setShorelineData] = useState(null);
   const [shorelineVisible, setShorelineVisible] = useState(true);
+  const [shorelineYearA, setShorelineYearA] = useState('2015');
+  const [shorelineYearB, setShorelineYearB] = useState('2025');
   const [shorelineError, setShorelineError] = useState(null);
   const [domainPayload, setDomainPayload] = useState(null);
   const [domainLoading, setDomainLoading] = useState(false);
@@ -272,14 +292,30 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
     Array.isArray(shorelineData.geojson.features) &&
     shorelineData.geojson.features.length > 0;
 
-  const shorelineStyle = useMemo(
-    () => ({
-      color: '#ff4d6d',
-      weight: 3,
-      opacity: 0.95,
-    }),
-    [],
-  );
+  const shorelineYears = useMemo(() => {
+    if (!realShorelineAvailable) return [];
+    return [...new Set(shorelineData.geojson.features.map(featureYear).filter((year) => year != null))]
+      .sort((a, b) => a - b);
+  }, [realShorelineAvailable, shorelineData]);
+
+  useEffect(() => {
+    if (!shorelineYears.length) return;
+    if (!shorelineYears.includes(Number(shorelineYearA))) setShorelineYearA(String(shorelineYears[0]));
+    if (!shorelineYears.includes(Number(shorelineYearB))) setShorelineYearB(String(shorelineYears.at(-1)));
+  }, [shorelineYears, shorelineYearA, shorelineYearB]);
+
+  const shorelineLayerA = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: (shorelineData?.geojson?.features || []).filter((feature) => featureYear(feature) === Number(shorelineYearA)),
+  }), [shorelineData, shorelineYearA]);
+
+  const shorelineLayerB = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: (shorelineData?.geojson?.features || []).filter((feature) => featureYear(feature) === Number(shorelineYearB)),
+  }), [shorelineData, shorelineYearB]);
+
+  const shorelineStyleA = useMemo(() => ({ color: '#38bdf8', weight: 3, opacity: 0.95 }), []);
+  const shorelineStyleB = useMemo(() => ({ color: '#fb7185', weight: 3, opacity: 0.95 }), []);
 
   return (
     <main className="map-container">
@@ -314,23 +350,24 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
             fontSize: 13,
           }}
         >
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              cursor: realShorelineAvailable ? 'pointer' : 'default',
-              fontWeight: 600,
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={shorelineVisible}
-              disabled={!realShorelineAvailable}
-              onChange={(event) => setShorelineVisible(event.target.checked)}
-            />
-            <span style={{ color: '#ff7b91' }}>━━</span>
-            Real CoastSat shoreline
+          <strong style={{ display: 'block', fontSize: 14, marginBottom: 10 }}>Compare two extracted shoreline years</strong>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#cbd5e1' }}>
+              <span><i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: '#38bdf8', marginRight: 5 }} />Year A</span>
+              <select value={shorelineYearA} onChange={(event) => setShorelineYearA(event.target.value)} style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: '#1e293b', color: '#f8fafc', border: '1px solid #475569' }}>
+                {(shorelineYears.length ? shorelineYears : Array.from({ length: 11 }, (_, i) => 2015 + i)).map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: 5, fontSize: 12, color: '#cbd5e1' }}>
+              <span><i style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: '#fb7185', marginRight: 5 }} />Year B</span>
+              <select value={shorelineYearB} onChange={(event) => setShorelineYearB(event.target.value)} style={{ width: '100%', padding: '7px 8px', borderRadius: 6, background: '#1e293b', color: '#f8fafc', border: '1px solid #475569' }}>
+                {(shorelineYears.length ? shorelineYears : Array.from({ length: 11 }, (_, i) => 2015 + i)).map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </label>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: realShorelineAvailable ? 'pointer' : 'default', fontWeight: 600 }}>
+            <input type="checkbox" checked={shorelineVisible} disabled={!realShorelineAvailable} onChange={(event) => setShorelineVisible(event.target.checked)} />
+            Show extracted shoreline lines
           </label>
 
           {shorelineError ? (
@@ -343,15 +380,11 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
             </p>
           ) : realShorelineAvailable ? (
             <>
-              <p style={{ margin: '8px 0 0', color: '#bbf7d0' }}>
-                {shorelineData.feature_count ?? shorelineData.geojson.features.length} extracted features
-              </p>
-              <p style={{ margin: '4px 0 0', color: '#cbd5e1' }}>
-                Source: CoastSat
-              </p>
-              <p style={{ margin: '4px 0 0', color: '#fde68a' }}>
-                Review the detections before scientific interpretation.
-              </p>
+              <p style={{ margin: '8px 0 0', color: '#bbf7d0' }}>{shorelineData.feature_count ?? shorelineData.geojson.features.length} extracted features across {shorelineYears.length} detected years.</p>
+              <p style={{ margin: '4px 0 0', color: '#cbd5e1' }}>Blue: {shorelineYearA} ({shorelineLayerA.features.length} lines) · Pink: {shorelineYearB} ({shorelineLayerB.features.length} lines)</p>
+              {shorelineYearA === shorelineYearB && <p style={{ margin: '4px 0 0', color: '#fde68a' }}>Choose two different years to compare shoreline movement.</p>}
+              {(shorelineLayerA.features.length === 0 || shorelineLayerB.features.length === 0) && <p style={{ margin: '4px 0 0', color: '#fde68a' }}>No extracted shoreline feature is available for one of these years. Choose another year with data.</p>}
+              <p style={{ margin: '4px 0 0', color: '#cbd5e1' }}>Source: CoastSat satellite-derived detections. Review the lines before scientific interpretation.</p>
             </>
           ) : (
             <p role="status" style={{ margin: '8px 0 0', color: '#fde68a' }}>
@@ -387,21 +420,12 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
           />
         )}
 
-        {activeSection === 'history' &&
-          shorelineVisible &&
-          realShorelineAvailable && (
-            <GeoJSON
-              key={shorelineData.metadata?.generated_utc || 'coastsat-shoreline'}
-              data={shorelineData.geojson}
-              style={shorelineStyle}
-            />
-          )}
-
-        {activeSection === 'history' && !realShorelineAvailable && domainPayload?.records?.filter((row) => row.year === 2025).map((row) => (
-          <CircleMarker key={row.transect_id} center={[row.lat, row.lon]} radius={7} pathOptions={{ color: '#fff', weight: 1.5, fillColor: '#fb7185', fillOpacity: .95 }}>
-            <Popup><strong>{row.transect_id}</strong><br/>Illustrative displacement: {fmt(row.displacement_m)} m<br/>Year: {row.year}</Popup>
-          </CircleMarker>
-        ))}
+        {activeSection === 'history' && shorelineVisible && realShorelineAvailable && shorelineLayerA.features.length > 0 && (
+          <GeoJSON key={`shoreline-${shorelineYearA}-${shorelineData.metadata?.generated_utc || 'extracted'}`} data={shorelineLayerA} style={shorelineStyleA} />
+        )}
+        {activeSection === 'history' && shorelineVisible && realShorelineAvailable && shorelineYearB !== shorelineYearA && shorelineLayerB.features.length > 0 && (
+          <GeoJSON key={`shoreline-${shorelineYearB}-${shorelineData.metadata?.generated_utc || 'extracted'}`} data={shorelineLayerB} style={shorelineStyleB} />
+        )}
 
         {activeSection === 'terrain' && domainPayload?.records?.map((row, index) => {
           const elevation = Number(row.elevation_m) || 0;
@@ -412,7 +436,7 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
         })}
       </MapContainer>
 
-      {DOMAIN_CONFIG[activeSection] && <DomainDashboard section={activeSection} payload={domainPayload} loading={domainLoading} error={domainError} />}
+      {DOMAIN_CONFIG[activeSection] && activeSection !== 'history' && <DomainDashboard section={activeSection} payload={domainPayload} loading={domainLoading} error={domainError} />}
     </main>
   );
 }
