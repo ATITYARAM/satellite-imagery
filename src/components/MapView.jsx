@@ -249,7 +249,7 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
 
   useEffect(() => {
     const config = DOMAIN_CONFIG[activeSection];
-    if (!config) { setDomainPayload(null); setDomainError(null); setDomainLoading(false); return undefined; }
+    if (!config || activeSection === 'history') { setDomainPayload(null); setDomainError(null); setDomainLoading(false); return undefined; }
     let cancelled = false;
     setDomainLoading(true);
     setDomainError(null);
