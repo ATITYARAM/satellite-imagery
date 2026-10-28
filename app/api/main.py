@@ -575,7 +575,7 @@ def forecast_map(year: int):
 @app.get('/forecast/{year}/transects.geojson')
 def forecast_transects(year: int):
     result = _forecast_response(year)
-    path = ROOT / 'outputs' / 'forecasts' / str(year) / 'transects.geojson'
+    path = ROOT / 'output' / 'forecasts' / str(year) / 'transects.geojson'
     if not path.is_file():
         raise HTTPException(status_code=500, detail='Forecast transect GeoJSON was not created.')
     return FileResponse(path, media_type='application/geo+json', headers={'Cache-Control': 'no-store'})
