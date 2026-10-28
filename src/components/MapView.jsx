@@ -1,9 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CircleMarker, GeoJSON, MapContainer, Polygon, Popup, TileLayer } from 'react-leaflet';
+import { CircleMarker, GeoJSON, MapContainer, Polygon, Polyline, Popup, TileLayer } from 'react-leaflet';
 import { SECTIONS } from './Sidebar';
 import { AlertTriangle, CloudRain, Database, History, Mountain, Waves } from 'lucide-react';
 
 const DEFAULT_CENTER = [8.46, 76.925];
+
+// Approximate visual reference trace only; not a CoastSat extraction or measured shoreline.
+const REFERENCE_COAST_TRACE = [
+  [8.505, 76.899], [8.497, 76.902], [8.489, 76.906],
+  [8.481, 76.909], [8.473, 76.913], [8.465, 76.917],
+  [8.457, 76.921], [8.449, 76.925], [8.441, 76.930],
+  [8.433, 76.934], [8.425, 76.938], [8.417, 76.942],
+];
 
 const DOMAIN_CONFIG = {
   history: {
@@ -388,8 +396,7 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
             </>
           ) : (
             <p role="status" style={{ margin: '8px 0 0', color: '#fde68a' }}>
-              Real shoreline output is not generated yet. Illustrative historical scenario data
-              is not displayed as a real shoreline layer.
+              An approximate reference coastline is shown in orange for orientation only. It is not a satellite-extracted shoreline and must not be used to calculate retreat. Run CoastSat extraction for real year-to-year comparisons.
             </p>
           )}
         </section>
@@ -432,6 +439,19 @@ export default function MapView({ activeSection, satelliteDataOpen }) {
         )}
         {activeSection === 'history' && shorelineVisible && realShorelineAvailable && shorelineYearB !== shorelineYearA && shorelineLayerB.features.length > 0 && (
           <GeoJSON key={`shoreline-${shorelineYearB}-${shorelineData.metadata?.generated_utc || 'extracted'}`} data={shorelineLayerB} style={shorelineStyleB} />
+        )}
+
+        {activeSection === 'history' && !realShorelineAvailable && (
+          <>
+            <Polyline positions={REFERENCE_COAST_TRACE} pathOptions={{ color: '#f97316', weight: 4, opacity: 0.95, dashArray: '7 6' }}>
+              <Popup><strong>Approximate reference coastline</strong><br />Orientation only — not satellite-extracted or measured. Do not use for erosion calculations.</Popup>
+            </Polyline>
+            {REFERENCE_COAST_TRACE.filter((_, index) => index % 2 === 0).map((position, index) => (
+              <CircleMarker key={`reference-coast-point-${index}`} center={position} radius={4} pathOptions={{ color: '#fff7ed', weight: 1.5, fillColor: '#f97316', fillOpacity: 1 }}>
+                <Popup>Reference coastline point {index + 1}<br />Approximate location only; not an extracted shoreline observation.</Popup>
+              </CircleMarker>
+            ))}
+          </>
         )}
 
       </MapContainer>
