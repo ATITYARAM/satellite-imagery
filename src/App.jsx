@@ -30,11 +30,11 @@ function XGBoostSatelliteSplit({ onToggleView, colorView }) {
     };
   }, []);
 
-  const left = data?.years?.['2016'];
-  const right = data?.years?.['2026'];
+  const left = data?.years?.['2015'];
+  const right = data?.years?.['2025'];
 
   return (
-    <main className="xgboost-satellite-split" aria-label="Raw satellite imagery comparison">
+    <main className="xgboost-satellite-split" aria-label="2015 versus 2025 satellite imagery comparison">
       <button
         type="button"
         className="xgboost-view-toggle"
@@ -49,11 +49,11 @@ function XGBoostSatelliteSplit({ onToggleView, colorView }) {
         {left?.available ? (
           <img
             src={colorView ? left.color_preview_url : left.preview_url}
-            alt={colorView ? '2016 color satellite imagery' : '2016 raw satellite imagery'}
+            alt={colorView ? '2015 color satellite imagery' : '2015 raw satellite imagery'}
           />
         ) : (
           <div className="satellite-unavailable">
-            <strong>2016 imagery not loaded</strong>
+            <strong>2015 imagery not loaded</strong>
             <span>Run <code>python scripts/download_landsat_aoi.py</code> to fetch this coastline.</span>
           </div>
         )}
@@ -62,11 +62,11 @@ function XGBoostSatelliteSplit({ onToggleView, colorView }) {
         {right?.available ? (
           <img
             src={colorView ? right.color_preview_url : right.preview_url}
-            alt={colorView ? '2026 color satellite imagery' : '2026 raw satellite imagery'}
+            alt={colorView ? '2025 color satellite imagery' : '2025 raw satellite imagery'}
           />
         ) : (
           <div className="satellite-unavailable">
-            <strong>2026 imagery not loaded</strong>
+            <strong>2025 imagery not loaded</strong>
             <span>Run <code>python scripts/download_landsat_aoi.py</code> to fetch this coastline.</span>
           </div>
         )}
