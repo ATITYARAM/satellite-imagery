@@ -5,7 +5,7 @@ import { SECTIONS } from './Sidebar';
 const DEFAULT_CENTER = [8.46, 76.925];
 
 function SatellitePanel({ data, onClose }) {
-  const years = ['2016', '2026'];
+  const years = ['2015', '2025'];
 
   return (
     <div className="satellite-panel raw-image-only">
