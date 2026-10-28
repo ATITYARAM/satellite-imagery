@@ -173,6 +173,59 @@ def satellite_color(year: int):
     return FileResponse(output_path, media_type='image/png')
 
 
+SHORELINE_DIR = ROOT / 'data' / 'shoreline_history' / 'thiruvananthapuram'
+SHORELINE_GEOJSON = SHORELINE_DIR / 'shoreline_lines.geojson'
+SHORELINE_METADATA = SHORELINE_DIR / 'extraction_metadata.json'
+
+
+@app.get('/shoreline/data')
+def shoreline_data():
+    """Return extracted CoastSat shoreline GeoJSON and its provenance."""
+    if not SHORELINE_GEOJSON.is_file():
+        return {
+            'available': False,
+            'source': 'CoastSat',
+            'geojson': {'type': 'FeatureCollection', 'features': []},
+            'metadata': None,
+            'message': (
+                'Real shoreline data is not available yet. '
+                'Run scripts/extract_thiruvananthapuram_shorelines.py '
+                'after configuring CoastSat and Earth Engine.'
+            ),
+        }
+
+    try:
+        with SHORELINE_GEOJSON.open('r', encoding='utf-8') as handle:
+            geojson = json.load(handle)
+
+        if geojson.get('type') != 'FeatureCollection' or not isinstance(
+            geojson.get('features'), list
+        ):
+            raise ValueError('Expected a GeoJSON FeatureCollection')
+
+        metadata = None
+        if SHORELINE_METADATA.is_file():
+            with SHORELINE_METADATA.open('r', encoding='utf-8') as handle:
+                metadata = json.load(handle)
+
+        return {
+            'available': True,
+            'source': 'CoastSat',
+            'geojson': geojson,
+            'metadata': metadata,
+            'feature_count': len(geojson['features']),
+            'message': (
+                'Extracted shoreline features are available; visual quality '
+                'review is required before scientific interpretation.'
+            ),
+        }
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f'Could not read shoreline extraction output: {exc}',
+        ) from exc
+
+
 @app.get('/xgboost/result')
 def xgboost_result(force: bool = False):
     try:
