@@ -358,18 +358,19 @@ def _write_result_image(probability: np.ndarray, reference: dict[str, Any], outp
     from matplotlib.lines import Line2D
     import rasterio
     from rasterio.enums import Resampling
-    from rasterio.warp import reproject
+    from rasterio.transform import array_bounds
+    from rasterio.warp import reproject, transform_geom
     from pyproj import Transformer
 
     height, width = probability.shape
-    west, south, east, north = rasterio.transform.array_bounds(height, width, reference["transform"])
+    west, south, east, north = array_bounds(height, width, reference["transform"])
     finite = np.isfinite(probability)
     if not finite.any():
         raise RuntimeError("Cannot render result map: proxy raster has no finite pixels")
 
     aoi = json.loads((ROOT / "config" / "aoi.geojson").read_text(encoding="utf-8"))
     geometry = aoi["features"][0]["geometry"]
-    projected = rasterio.warp.transform_geom("EPSG:4326", reference["crs"], geometry, precision=3)
+    projected = transform_geom("EPSG:4326", reference["crs"], geometry, precision=3)
     ring = np.asarray(projected["coordinates"][0], dtype=float)
 
     # Find the latest local RGB scene that can be aligned to the analysis grid.
