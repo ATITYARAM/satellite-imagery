@@ -20,3 +20,6 @@ tools/
 data/satellite/**/catalog/scene_catalog.csv
 data/satellite/**/catalog/stac_items.jsonl.gz
 data/satellite/**/catalog/query_log.csv
+
+# Windows download metadata
+*:Zone.Identifier
