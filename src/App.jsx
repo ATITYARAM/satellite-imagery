@@ -333,8 +333,8 @@ function ResultView() {
               <div className="result-card-header clean-map-header">
                 <div>
                   <span>SPATIAL OUTPUT</span>
-                  <strong>Satellite map with 2026 / 2027 retreat scenarios</strong>
-                  <p>Satellite basemap with metre-scale scenario overlays. The XGBoost score remains a separate spectral-change proxy.</p>
+                  <strong>Historical spectral-change overlay on satellite imagery</strong>
+                  <p>2015–2025 satellite RGB with a transparent XGBoost change-proxy layer. The year-specific retreat scenario is shown separately above.</p>
                 </div>
                 <span className={isFull ? 'result-status-pill complete' : 'result-status-pill partial'}>
                   {isFull ? 'Full archive' : 'Development run'}
