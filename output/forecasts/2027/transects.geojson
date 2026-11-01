@@ -1,0 +1,161 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.936,
+          8.4515
+        ]
+      },
+      "properties": {
+        "transect_id": "PO-01",
+        "lat": 8.4515,
+        "lon": 76.936,
+        "forecast_displacement_m": 2.0051818181818186,
+        "forecast_annual_rate_m_yr": 0.19918181818181815,
+        "interval_plus_minus_m": 15.003164135846562,
+        "risk_category": "low",
+        "observation_count": 11,
+        "source": "SYNTHETIC_DEVELOPMENT_FIXTURE",
+        "forecast_year": 2027,
+        "forecast_horizon_years": 2,
+        "units": "m; m/year",
+        "synthetic": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.941,
+          8.445
+        ]
+      },
+      "properties": {
+        "transect_id": "PO-02",
+        "lat": 8.445,
+        "lon": 76.941,
+        "forecast_displacement_m": -9.244181818181818,
+        "forecast_annual_rate_m_yr": -0.9707272727272724,
+        "interval_plus_minus_m": 15.002792529440729,
+        "risk_category": "low",
+        "observation_count": 11,
+        "source": "SYNTHETIC_DEVELOPMENT_FIXTURE",
+        "forecast_year": 2027,
+        "forecast_horizon_years": 2,
+        "units": "m; m/year",
+        "synthetic": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.9105,
+          8.4805
+        ]
+      },
+      "properties": {
+        "transect_id": "SH-01",
+        "lat": 8.4805,
+        "lon": 76.9105,
+        "forecast_displacement_m": -17.025272727272732,
+        "forecast_annual_rate_m_yr": -1.3821818181818182,
+        "interval_plus_minus_m": 15.003001791302038,
+        "risk_category": "moderate",
+        "observation_count": 11,
+        "source": "SYNTHETIC_DEVELOPMENT_FIXTURE",
+        "forecast_year": 2027,
+        "forecast_horizon_years": 2,
+        "units": "m; m/year",
+        "synthetic": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.916,
+          8.474
+        ]
+      },
+      "properties": {
+        "transect_id": "SH-02",
+        "lat": 8.474,
+        "lon": 76.916,
+        "forecast_displacement_m": -8.279727272727271,
+        "forecast_annual_rate_m_yr": -0.9591818181818178,
+        "interval_plus_minus_m": 15.001683814082371,
+        "risk_category": "low",
+        "observation_count": 11,
+        "source": "SYNTHETIC_DEVELOPMENT_FIXTURE",
+        "forecast_year": 2027,
+        "forecast_horizon_years": 2,
+        "units": "m; m/year",
+        "synthetic": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.9225,
+          8.4665
+        ]
+      },
+      "properties": {
+        "transect_id": "VA-01",
+        "lat": 8.4665,
+        "lon": 76.9225,
+        "forecast_displacement_m": -8.11836363636364,
+        "forecast_annual_rate_m_yr": -0.5041818181818183,
+        "interval_plus_minus_m": 15.002471469823064,
+        "risk_category": "low",
+        "observation_count": 11,
+        "source": "SYNTHETIC_DEVELOPMENT_FIXTURE",
+        "forecast_year": 2027,
+        "forecast_horizon_years": 2,
+        "units": "m; m/year",
+        "synthetic": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.929,
+          8.459
+        ]
+      },
+      "properties": {
+        "transect_id": "VA-02",
+        "lat": 8.459,
+        "lon": 76.929,
+        "forecast_displacement_m": -0.6654545454545455,
+        "forecast_annual_rate_m_yr": -0.15909090909090906,
+        "interval_plus_minus_m": 15.003392053230167,
+        "risk_category": "low",
+        "observation_count": 11,
+        "source": "SYNTHETIC_DEVELOPMENT_FIXTURE",
+        "forecast_year": 2027,
+        "forecast_horizon_years": 2,
+        "units": "m; m/year",
+        "synthetic": true
+      }
+    }
+  ],
+  "properties": {
+    "data_mode": "synthetic_development_preview",
+    "crs": "EPSG:4326",
+    "target": "cross-shore shoreline displacement",
+    "negative_displacement": "retreat"
+  }
+}
